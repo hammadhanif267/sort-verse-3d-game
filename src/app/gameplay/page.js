@@ -14,6 +14,12 @@ export default function GameplayPage() {
         {/* Phone */}
         <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_50px_rgba(0,180,255,0.16)]">
           <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020b15]">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-80"
+              style={{ backgroundImage: "url('/gameplay-factory.webp')" }}
+            />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,11,22,.25)_0%,rgba(2,11,21,.08)_42%,rgba(2,11,21,.55)_100%)]" />
             {/* Top HUD */}
             <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-4">
               {/* Pause */}
@@ -42,7 +48,7 @@ export default function GameplayPage() {
             </header>
 
             {/* 3D Game */}
-            <section className="min-h-0 flex-1">
+            <section className="relative z-10 min-h-0 flex-1">
               <GameplayScene />
             </section>
 

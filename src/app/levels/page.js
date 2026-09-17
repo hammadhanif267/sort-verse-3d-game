@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BottomNav from "@/components/BottomNav";
 
 const levels = [
   { id: 1, stars: 3, color: "blue" },
@@ -27,9 +28,11 @@ export default function LevelsPage() {
 
         {/* Phone */}
         <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_15%,rgba(0,147,205,0.2),transparent_34%),linear-gradient(180deg,#042b42_0%,#031b2a_48%,#020d18_100%)]">
+          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/gameplay-factory.webp')" }} />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.48),rgba(2,13,24,.88))]" />
             {/* Header */}
-            <header className="flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
+            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link
                 href="/"
                 className="flex items-center gap-2 text-white/80 transition hover:text-white"
@@ -54,7 +57,7 @@ export default function LevelsPage() {
             </header>
 
             {/* Difficulty */}
-            <section className="shrink-0 px-4 pt-3">
+            <section className="relative z-10 shrink-0 px-4 pt-3">
               <div className="grid grid-cols-3 overflow-hidden rounded-full border border-cyan-400/20 bg-[#041a2b] p-1">
                 <button className="rounded-full bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-2 text-[10px] font-black shadow-[0_0_15px_rgba(0,180,255,0.25)]">
                   Normal
@@ -73,7 +76,7 @@ export default function LevelsPage() {
             </section>
 
             {/* Level grid */}
-            <section className="min-h-0 flex-1 overflow-hidden px-4 py-3">
+            <section className="relative z-10 min-h-0 flex-1 overflow-hidden px-4 py-3">
               <div className="grid h-full min-h-0 grid-cols-3 grid-rows-4 gap-3">
                 {levels.map((level) => (
                   <LevelCard key={level.id} level={level} />
@@ -82,32 +85,7 @@ export default function LevelsPage() {
             </section>
 
             {/* Bottom navigation */}
-            <nav className="shrink-0 border-t border-cyan-300/10 bg-[#031421]/95 px-4 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-              <div className="grid grid-cols-4">
-                <Link
-                  href="/"
-                  className="flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[8px] font-semibold text-white/40"
-                >
-                  <span className="text-base leading-none">⌂</span>
-                  <span>Home</span>
-                </Link>
-
-                <div className="flex flex-col items-center justify-center gap-1 rounded-xl bg-cyan-400/10 py-1 text-[8px] font-semibold text-cyan-300">
-                  <span className="text-base leading-none">▦</span>
-                  <span>Levels</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[8px] font-semibold text-white/40">
-                  <span className="text-base leading-none">♛</span>
-                  <span>Ranking</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[8px] font-semibold text-white/40">
-                  <span className="text-base leading-none">●</span>
-                  <span>Profile</span>
-                </div>
-              </div>
-            </nav>
+            <BottomNav active="levels" />
           </div>
         </div>
       </div>
@@ -120,14 +98,17 @@ export default function LevelsPage() {
 function LevelCard({ level }) {
   if (level.locked) {
     return (
-      <div className="relative flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-cyan-300/15 bg-[#062238]/70 opacity-55">
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/[0.03] to-transparent" />
+      <div className="relative flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-cyan-300/15 bg-[#062238]/75 opacity-60">
+        <div className="absolute inset-1 rounded-lg bg-cover bg-center grayscale" style={{ backgroundImage: "linear-gradient(rgba(2,15,28,.55),rgba(2,15,28,.9)),url('/gameplay-factory.webp')" }} />
+        <div className="absolute bottom-[34%] left-[16%] right-[16%] flex h-[40%] items-end justify-center gap-1 opacity-50">
+          {["#8039bc", "#b06e24", "#236d95"].map((color) => <span key={color} className="relative h-full w-1/5 rounded-b border-x border-b border-cyan-100/30 bg-white/10"><i className="absolute -left-0.5 -right-0.5 -top-0.5 h-1 rounded-full" style={{ backgroundColor: color }} /></span>)}
+        </div>
 
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/15 text-sm">
+        <div className="relative z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/45 text-sm shadow-lg">
           🔒
         </div>
 
-        <span className="relative mt-2 text-xs font-bold text-white/45">
+        <span className="relative z-10 mt-2 text-xs font-bold text-white/55">
           {level.id}
         </span>
       </div>
@@ -135,7 +116,10 @@ function LevelCard({ level }) {
   }
 
   return (
-    <button
+    <Link
+      href="/gameplay"
+      prefetch
+      aria-label={`Play level ${level.id}`}
       className={`group relative flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-xl border transition active:scale-[0.97] ${
         level.selected
           ? "border-cyan-300 bg-[#073553] shadow-[0_0_22px_rgba(0,190,255,0.42),inset_0_0_18px_rgba(0,180,255,0.12)]"
@@ -148,17 +132,16 @@ function LevelCard({ level }) {
       )}
 
       {/* Mini level artwork */}
-      <div className="relative mb-1 flex h-[55%] w-[68%] items-end justify-center gap-1">
-        <div className="h-[55%] w-[24%] rounded-t bg-[#23617e] shadow-[0_0_8px_rgba(0,190,255,0.15)]" />
-
-        <div className="h-[82%] w-[27%] rounded-t bg-gradient-to-b from-[#238fb3] to-[#104764] shadow-[0_0_9px_rgba(0,200,255,0.18)]">
-          <div className="mt-2 space-y-1 px-1">
-            <div className="h-0.5 rounded-full bg-cyan-200/50" />
-            <div className="h-0.5 rounded-full bg-cyan-200/30" />
-          </div>
-        </div>
-
-        <div className="h-[65%] w-[24%] rounded-t bg-[#1a536f]" />
+      <div className="relative mb-1 flex h-[58%] w-[82%] items-end justify-center gap-1.5 overflow-hidden rounded-lg border border-cyan-300/20 bg-cover bg-center pb-2 shadow-[inset_0_0_16px_rgba(0,0,0,.75)]" style={{ backgroundImage: "linear-gradient(rgba(2,16,29,.42),rgba(2,16,29,.78)),url('/gameplay-factory.webp')" }}>
+        <span className="absolute inset-x-1 bottom-0 h-[38%] rounded-t-md bg-gradient-to-b from-slate-400/65 via-slate-700/85 to-slate-900" />
+        {["#8f42ff", "#20bfff", "#ff8f23"].map((color, index) => (
+          <span key={color} className="relative z-10 h-[72%] w-[21%] rounded-b-md border-x border-b border-cyan-100/55 bg-gradient-to-r from-white/25 via-transparent to-white/15 shadow-[0_0_8px_rgba(32,200,255,.2)]">
+            <i className="absolute -left-0.5 -right-0.5 -top-1 h-1.5 rounded-full border border-white/45" style={{ backgroundColor: color }} />
+            <i className="absolute bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-sm shadow-[0_0_7px_currentColor]" style={{ backgroundColor: color, color }} />
+            <i className="absolute bottom-4 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full shadow-[0_0_7px_currentColor]" style={{ backgroundColor: index === 1 ? "#ffcf2d" : color, color }} />
+          </span>
+        ))}
+        <span className="absolute inset-x-2 bottom-1 z-20 h-1.5 rounded-full bg-gradient-to-b from-slate-300 to-slate-700" />
       </div>
 
       {/* Level */}
@@ -179,6 +162,6 @@ function LevelCard({ level }) {
           </span>
         ))}
       </div>
-    </button>
+    </Link>
   );
 }
