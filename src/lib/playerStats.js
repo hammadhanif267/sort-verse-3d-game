@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   diamonds: "sortverse-player-diamonds",
 };
 
-const DEFAULT_STATS = { level: 1, coins: 0, diamonds: 0 };
+const DEFAULT_STATS = { level: 0, coins: 0, diamonds: 0 };
+const APP_RESET_KEY = "sortverse-clean-start-v3";
 
 function readNumber(key, fallback) {
   if (typeof window === "undefined") return fallback;
@@ -19,7 +20,8 @@ function readNumber(key, fallback) {
 
 /**
  * Player progress (level, coins, diamonds) persisted in localStorage.
- * New players always start at Level 1 with 0 coins / 0 diamonds.
+ * New players always start at Level 0 (no level cleared yet) with 0 coins / 0 diamonds.
+ * The level only goes up once a level is actually completed (`completeLevel`).
  * Gameplay screens can later call `addRewards` or `completeLevel`
  * so the HUD keeps growing with real progress instead of demo numbers.
  */
@@ -27,6 +29,18 @@ export function usePlayerStats() {
   const [stats, setStats] = useState(DEFAULT_STATS);
 
   useEffect(() => {
+    // Every delivered build starts from a clean Level 1 state.
+    // The versioned key makes this reset happen once for this build only;
+    // progress earned after first launch is then persisted normally.
+    if (!window.localStorage.getItem(APP_RESET_KEY)) {
+      window.localStorage.removeItem("sortverse-difficulty-progress");
+      window.localStorage.removeItem("sortverse-level-stars");
+      window.localStorage.setItem(STORAGE_KEYS.level, "0");
+      window.localStorage.setItem(STORAGE_KEYS.coins, "0");
+      window.localStorage.setItem(STORAGE_KEYS.diamonds, "0");
+      window.localStorage.setItem(APP_RESET_KEY, "1");
+    }
+
     setStats({
       level: readNumber(STORAGE_KEYS.level, DEFAULT_STATS.level),
       coins: readNumber(STORAGE_KEYS.coins, DEFAULT_STATS.coins),

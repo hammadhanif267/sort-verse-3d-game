@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import GameplayScene from "../../components/game/GameplayScene";
 
-export default function GameplayPage() {
+function GameplayContent() {
+  const searchParams = useSearchParams();
+  const levelParam = Number(searchParams.get("level"));
+  const level = Number.isFinite(levelParam) && levelParam > 0 ? levelParam : 1;
+  const difficultyParam = searchParams.get("difficulty");
+  const difficulty = ["normal", "hard", "expert"].includes(difficultyParam) ? difficultyParam : "normal";
+
   return (
     <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
       {/* Desktop background */}
@@ -33,7 +41,7 @@ export default function GameplayPage() {
 
               {/* Level */}
               <div className="text-center drop-shadow-lg">
-                <div className="text-xl font-black tracking-tight">Level 5</div>
+                <div className="text-xl font-black tracking-tight">Level {level}</div>
 
                 <div className="mt-0.5 text-[10px] font-medium text-cyan-100/75">
                   Sort the objects
@@ -49,7 +57,7 @@ export default function GameplayPage() {
 
             {/* 3D Game */}
             <section className="relative z-10 min-h-0 flex-1">
-              <GameplayScene />
+              <GameplayScene key={`${difficulty}-${level}`} level={level} difficulty={difficulty} />
             </section>
 
             {/* Bottom instruction */}
@@ -78,5 +86,13 @@ export default function GameplayPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function GameplayPage() {
+  return (
+    <Suspense fallback={null}>
+      <GameplayContent />
+    </Suspense>
   );
 }

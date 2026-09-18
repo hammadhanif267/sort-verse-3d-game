@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePlayerStats } from "@/lib/playerStats";
+import Link from "next/link";
+import { CoinIcon, GemIcon } from "@/components/icons";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import {
@@ -103,13 +106,15 @@ const INITIAL_TUBES = [
   },
 ];
 
-export default function GameplayScene() {
+export default function GameplayScene({ level = 1, difficulty = "normal" }) {
   const [tubes, setTubes] = useState(INITIAL_TUBES);
   const [selected, setSelected] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [moves, setMoves] = useState(0);
   const [message, setMessage] = useState("Drag an object to sort it");
   const [sceneReady, setSceneReady] = useState(false);
+  const { addRewards, completeLevel } = usePlayerStats();
+  const rewardRecorded = useRef(false);
 
   const completed = useMemo(() => {
     return tubes.every((tube) => {
@@ -121,6 +126,38 @@ export default function GameplayScene() {
       );
     });
   }, [tubes]);
+
+  const earnedStars = moves <= 12 ? 3 : moves <= 18 ? 2 : 1;
+
+  useEffect(() => {
+    if (!completed || rewardRecorded.current) return;
+    rewardRecorded.current = true;
+
+    const progressKey = "sortverse-difficulty-progress";
+    const starsKey = "sortverse-level-stars";
+    let progress = { normal: 0, hard: 0, expert: 0 };
+    let stars = {};
+
+    try {
+      progress = { ...progress, ...(JSON.parse(window.localStorage.getItem(progressKey) || "{}")) };
+      stars = JSON.parse(window.localStorage.getItem(starsKey) || "{}");
+    } catch {}
+
+    progress[difficulty] = Math.max(Number(progress[difficulty]) || 0, level);
+    stars[`${difficulty}-${level}`] = Math.max(Number(stars[`${difficulty}-${level}`]) || 0, earnedStars);
+
+    window.localStorage.setItem(progressKey, JSON.stringify(progress));
+    window.localStorage.setItem(starsKey, JSON.stringify(stars));
+    window.dispatchEvent(new Event("sortverse-progress"));
+
+    const coinReward = 100 * level;
+    const diamondReward = earnedStars;
+    if (difficulty === "normal") {
+      completeLevel({ coins: coinReward, diamonds: diamondReward });
+    } else {
+      addRewards({ coins: coinReward, diamonds: diamondReward });
+    }
+  }, [completed, completeLevel, difficulty, earnedStars, level]);
 
   const handleObjectStart = useCallback((tubeId, objectIndex, object) => {
     setDragging({
@@ -203,6 +240,7 @@ export default function GameplayScene() {
     setDragging(null);
     setMoves(0);
     setMessage("Drag an object to sort it");
+    rewardRecorded.current = false;
   }, []);
 
   return (
@@ -377,7 +415,21 @@ export default function GameplayScene() {
               Great job! All objects are sorted.
             </p>
 
-            <div className="mt-4 rounded-xl bg-white/5 py-3">
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
+                <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
+                <div className="mt-1 text-lg font-black text-yellow-300">{"★".repeat(earnedStars)}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
+                <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
+                <div className="mt-1 flex items-center justify-center gap-3 text-sm font-black">
+                  <span className="inline-flex items-center gap-1.5 text-yellow-300"><span>+{100 * level}</span><CoinIcon className="h-4 w-4" /></span>
+                  <span className="inline-flex items-center gap-1.5 text-violet-200"><span>+{earnedStars}</span><GemIcon className="h-4 w-4" /></span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl bg-white/5 py-3">
               <div className="text-[9px] uppercase tracking-widest text-white/40">
                 Moves
               </div>
@@ -387,12 +439,29 @@ export default function GameplayScene() {
               </div>
             </div>
 
-            <button
-              onClick={resetGame}
-              className="mt-4 w-full rounded-xl bg-gradient-to-b from-[#ffd21a] to-[#ff8500] py-3 text-sm font-black text-[#181000]"
-            >
-              Play Again
-            </button>
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              {level < 12 ? (
+                <Link
+                  href={`/gameplay?level=${level + 1}&difficulty=${difficulty}`}
+                  className="flex items-center justify-center rounded-xl bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-3 text-sm font-black text-white shadow-[0_0_18px_rgba(0,190,255,.22)] transition active:scale-[0.98]"
+                >
+                  Next Level
+                </Link>
+              ) : (
+                <Link
+                  href="/levels"
+                  className="flex items-center justify-center rounded-xl bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-3 text-sm font-black text-white shadow-[0_0_18px_rgba(0,190,255,.22)] transition active:scale-[0.98]"
+                >
+                  Levels
+                </Link>
+              )}
+              <button
+                onClick={resetGame}
+                className="rounded-xl border border-cyan-300/25 bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
+              >
+                Play Again
+              </button>
+            </div>
           </div>
         </div>
       )}

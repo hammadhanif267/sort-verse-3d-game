@@ -4,11 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePlayerStats } from "@/lib/playerStats";
 import BottomNav from "@/components/BottomNav";
-import { CalendarIcon, CityIcon, LevelsIcon } from "@/components/icons";
+import { CalendarIcon, CityGoldIcon, LevelsIcon } from "@/components/icons";
 import { Gem } from "lucide-react";
 
 export default function HomePage() {
   const { level, coins, diamonds } = usePlayerStats();
+
+  // Play button always resumes progress instead of always restarting from
+  // Level 1: a brand-new player (level 0) starts at Level 1, and a returning
+  // player is sent straight to the next level after the last one they cleared.
+  const nextLevel = level + 1;
+  const isReturningPlayer = level > 0;
+  const playLabel = isReturningPlayer ? "Continue" : "Play";
 
   return (
     <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
@@ -61,7 +68,17 @@ export default function HomePage() {
                 <div className="flex items-center gap-2">
                   {/* Premium Gold Coins */}
                   <div className="flex items-center gap-1.5 rounded-full border border-yellow-400/40 bg-[#06243a]/95 px-3 py-1.5 text-xs font-bold shadow-[0_0_12px_rgba(255,190,0,0.08)]">
-                    <PremiumCoinIcon />
+                    <span
+                      className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fff7bd] via-[#ffd43b] to-[#d58a00] shadow-[0_0_10px_rgba(255,190,0,0.42)] ring-1 ring-yellow-200/60"
+                      aria-hidden="true"
+                    >
+                      <span className="absolute inset-[2px] rounded-full border-[1.5px] border-[#a76500]/70" />
+                      <span className="absolute inset-[4px] rounded-full border border-[#fff0a0]/70" />
+                      <span className="absolute left-[4px] top-[3px] h-[4px] w-[2px] rotate-[35deg] rounded-full bg-white/75" />
+                      <span className="relative z-10 -translate-y-[0.5px] text-[9px] font-black leading-none text-[#704000] drop-shadow-[0_1px_0_rgba(255,255,255,0.35)]">
+                        $
+                      </span>
+                    </span>
 
                     <span className="text-yellow-50">
                       {coins.toLocaleString()}
@@ -107,16 +124,22 @@ export default function HomePage() {
               <div className="min-h-0 flex-1" />
 
               {/* Main menu */}
-              <section className="shrink-0 space-y-2 px-4 pb-2">
-                {/* Play */}
+              <section className="shrink-0 space-y-2 px-7 pb-2">
+                {/* Play / Continue — always resumes from the next uncleared level */}
                 <Link
-                  href="/gameplay"
+                  href={`/gameplay?level=${nextLevel}`}
                   prefetch
-                  className="flex h-[50px] w-full items-center justify-center rounded-xl border border-yellow-300/70 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_4px_14px_rgba(255,160,0,0.18)] transition hover:brightness-110 active:scale-[0.99]"
+                  className="group mx-auto flex h-[44px] w-[94%] items-center justify-center rounded-full border border-yellow-300/70 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_4px_14px_rgba(255,160,0,0.18)] transition duration-200 hover:border-yellow-200 hover:bg-gradient-to-b hover:from-[#ffe45a] hover:to-[#ffb300] hover:shadow-[0_0_18px_rgba(255,195,0,0.35)] hover:brightness-110 active:scale-[0.99]"
                 >
-                  <span className="text-base font-black tracking-wide text-[#181000]">
-                    Play
+                  <span className="text-base font-black tracking-wide text-[#181000] transition-colors duration-200 group-hover:text-[#5c3900]">
+                    {playLabel}
                   </span>
+
+                  {isReturningPlayer && (
+                    <span className="ml-2 text-[11px] font-bold text-[#5c3900]/80 transition-colors duration-200 group-hover:text-[#5c3900]">
+                      · Level {nextLevel}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Level Selection */}
@@ -131,18 +154,12 @@ export default function HomePage() {
                 <MenuButton
                   icon={CalendarIcon}
                   title="Daily Challenge"
-                  notification="1"
                   disabled
                   blue
                 />
 
                 {/* Build Your City */}
-                <MenuButton
-                  icon={CityIcon}
-                  title="Build Your City"
-                  disabled
-                  purple
-                />
+                <MenuButton title="Build Your City" disabled purple />
               </section>
 
               {/* Bottom navigation */}
@@ -152,31 +169,6 @@ export default function HomePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-/* ---------------- Premium Gold Coin Icon ---------------- */
-
-function PremiumCoinIcon() {
-  return (
-    <span
-      className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fff7bd] via-[#ffd43b] to-[#d58a00] shadow-[0_0_10px_rgba(255,190,0,0.42)] ring-1 ring-yellow-200/60"
-      aria-hidden="true"
-    >
-      {/* Outer coin rim */}
-      <span className="absolute inset-[2px] rounded-full border-[1.5px] border-[#a76500]/70" />
-
-      {/* Inner embossed rim */}
-      <span className="absolute inset-[4px] rounded-full border border-[#fff0a0]/70" />
-
-      {/* Coin shine */}
-      <span className="absolute left-[4px] top-[3px] h-[4px] w-[2px] rotate-[35deg] rounded-full bg-white/75" />
-
-      {/* Currency mark */}
-      <span className="relative z-10 -translate-y-[0.5px] text-[9px] font-black leading-none text-[#704000] drop-shadow-[0_1px_0_rgba(255,255,255,0.35)]">
-        $
-      </span>
-    </span>
   );
 }
 
@@ -191,31 +183,35 @@ function MenuButton({
   href,
   disabled = false,
 }) {
-  const className = `flex h-[47px] w-full items-center rounded-xl border px-3 text-left transition active:scale-[0.99] ${
+  const className = `group mx-auto flex h-[42px] w-[94%] items-center rounded-full border px-3 text-left transition duration-200 active:scale-[0.99] ${
     disabled ? "cursor-not-allowed opacity-65" : ""
   } ${
     purple
-      ? "border-purple-300/60 bg-gradient-to-r from-[#8b22e8] to-[#c000d9] shadow-[0_4px_16px_rgba(190,0,255,0.16)]"
+      ? "border-purple-300/60 bg-gradient-to-r from-[#8b22e8] to-[#c000d9] shadow-[0_4px_16px_rgba(190,0,255,0.16)] hover:border-yellow-300/70 hover:bg-gradient-to-r hover:from-[#a53cf0] hover:to-[#d20ce5] hover:shadow-[0_0_18px_rgba(255,195,0,0.25)]"
       : blue
-        ? "border-cyan-400/20 bg-[#062438] shadow-[inset_0_0_15px_rgba(0,150,220,0.05)] hover:bg-[#073149]"
-        : "border-white/10 bg-white/5"
+        ? "border-cyan-400/20 bg-[#062438] shadow-[inset_0_0_15px_rgba(0,150,220,0.05)] hover:border-yellow-300/50 hover:bg-gradient-to-r hover:from-[#17445a] hover:to-[#493e18] hover:shadow-[0_0_16px_rgba(255,195,0,0.22)]"
+        : "border-white/10 bg-white/5 hover:border-yellow-300/50 hover:bg-yellow-400/10 hover:shadow-[0_0_16px_rgba(255,195,0,0.22)]"
   }`;
 
   const content = (
     <>
       <span
-        className={`mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-          purple
-            ? "bg-white/15 text-yellow-300"
-            : "bg-cyan-500/10 text-cyan-300"
+        className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+          purple ? "" : "bg-[#0c3a58]/70 ring-1 ring-cyan-300/15"
         }`}
       >
-        <Icon className="h-[18px] w-[18px]" />
+        {purple ? (
+          <CityGoldIcon className="h-7 w-7 drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)]" />
+        ) : (
+          <Icon className="h-5 w-5" />
+        )}
       </span>
 
       <span
-        className={`min-w-0 flex-1 text-xs font-bold ${
-          purple ? "text-white" : "text-white/90"
+        className={`min-w-0 flex-1 text-xs font-bold transition-colors duration-200 ${
+          purple
+            ? "text-white group-hover:text-yellow-100"
+            : "text-white/90 group-hover:text-yellow-300"
         }`}
       >
         {title}
@@ -227,7 +223,13 @@ function MenuButton({
         </span>
       )}
 
-      <span className={`text-lg ${purple ? "text-white" : "text-cyan-300"}`}>
+      <span
+        className={`text-lg transition-colors duration-200 ${
+          purple
+            ? "text-white group-hover:text-yellow-300"
+            : "text-cyan-300 group-hover:text-yellow-300"
+        }`}
+      >
         ›
       </span>
     </>
