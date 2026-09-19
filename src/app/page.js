@@ -3,12 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePlayerStats } from "@/lib/playerStats";
+import useBackgroundMusic, { useSoundMuted } from "@/lib/useBackgroundMusic";
 import BottomNav from "@/components/BottomNav";
 import { CalendarIcon, CityGoldIcon, LevelsIcon } from "@/components/icons";
-import { Gem } from "lucide-react";
+import { Gem, Volume2, VolumeX } from "lucide-react";
 
 export default function HomePage() {
   const { level, coins, diamonds } = usePlayerStats();
+
+  // One continuous, professional menu theme. It keeps playing the whole time
+  // the player is on a menu screen and is not restarted when moving between
+  // the home page and the other menu pages.
+  useBackgroundMusic("menu");
 
   // Play button always resumes progress instead of always restarting from
   // Level 1: a brand-new player (level 0) starts at Level 1, and a returning
@@ -66,6 +72,8 @@ export default function HomePage() {
 
                 {/* Currency */}
                 <div className="flex items-center gap-2">
+                  <SoundToggle />
+
                   {/* Premium Gold Coins */}
                   <div className="flex items-center gap-1.5 rounded-full border border-yellow-400/40 bg-[#06243a]/95 px-3 py-1.5 text-xs font-bold shadow-[0_0_12px_rgba(255,190,0,0.08)]">
                     <span
@@ -169,6 +177,28 @@ export default function HomePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/* ---------------- Sound Toggle ---------------- */
+
+function SoundToggle() {
+  const [muted, toggle] = useSoundMuted();
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={muted ? "Turn music on" : "Turn music off"}
+      aria-pressed={muted}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-400/40 bg-[#06243a]/95 text-cyan-100 shadow-[0_0_12px_rgba(0,210,255,0.08)] transition duration-200 hover:border-yellow-300/60 hover:text-yellow-200 active:scale-[0.96]"
+    >
+      {muted ? (
+        <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+      ) : (
+        <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+      )}
+    </button>
   );
 }
 

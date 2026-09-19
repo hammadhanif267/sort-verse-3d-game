@@ -9,7 +9,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_STATS = { level: 0, coins: 0, diamonds: 0 };
-const APP_RESET_KEY = "sortverse-clean-start-v3";
+const APP_RESET_KEY = "sortverse-clean-start-v4";
 
 function readNumber(key, fallback) {
   if (typeof window === "undefined") return fallback;

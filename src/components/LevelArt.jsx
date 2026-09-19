@@ -60,9 +60,9 @@ function Vial({ x, width, height, bottom, vialColor, liquidColor, seed = 0 }) {
 
 export default function LevelArt({ id, className = "" }) {
   const p = paletteFor(id);
-  const heights = [17, 24, 19];
+  const heights = [14, 20, 16];
   const positions = [17, 42, 67];
-  const vialBottom = 78;
+  const vialBottom = 58;
 
   return (
     <svg
@@ -73,7 +73,7 @@ export default function LevelArt({ id, className = "" }) {
       aria-label={`Level ${id} artwork`}
     >
       <defs>
-        <radialGradient id={`glow-${id}`} cx="50%" cy="30%" r="65%">
+        <radialGradient id={`glow-${id}`} cx="50%" cy="24%" r="60%">
           <stop offset="0%" stopColor={p.glow} stopOpacity="0.35" />
           <stop offset="100%" stopColor={p.glow} stopOpacity="0" />
         </radialGradient>
@@ -86,8 +86,8 @@ export default function LevelArt({ id, className = "" }) {
       <rect width="100" height="100" fill="#051627" />
       <rect width="100" height="100" fill={`url(#glow-${id})`} />
 
-      {/* floor platform */}
-      <path d="M6 88 L50 76 L94 88 L50 100 Z" fill={`url(#floor-${id})`} stroke={p.glow} strokeOpacity="0.18" />
+      {/* floor platform, sits just under the vials */}
+      <path d="M10 62 L50 52 L90 62 L50 72 Z" fill={`url(#floor-${id})`} stroke={p.glow} strokeOpacity="0.18" />
 
       {positions.map((x, i) => (
         <Vial

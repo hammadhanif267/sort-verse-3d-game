@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
 import { CoinIcon, GemIcon } from "@/components/icons";
 import { usePlayerStats } from "@/lib/playerStats";
+import useBackgroundMusic from "@/lib/useBackgroundMusic";
 
 const LEVEL_COUNT = 12;
 const DIFFICULTIES = ["normal", "hard", "expert"];
@@ -37,16 +38,31 @@ function getStars() {
   }
 }
 
+function getRewards() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem("sortverse-level-rewards") || "{}");
+  } catch {
+    return {};
+  }
+}
+
 export default function LevelsPage() {
   const [difficulty, setDifficulty] = useState("normal");
   const [progress, setProgress] = useState({ normal: 0, hard: 0, expert: 0 });
   const [stars, setStars] = useState({});
+  const [rewards, setRewards] = useState({});
   const { coins, diamonds } = usePlayerStats();
+
+  // Same menu theme as the home page — it simply keeps playing across the
+  // route change instead of restarting.
+  useBackgroundMusic("menu");
 
   useEffect(() => {
     const sync = () => {
       setProgress(getProgress());
       setStars(getStars());
+      setRewards(getRewards());
     };
     sync();
     window.addEventListener("storage", sync);
@@ -122,11 +138,13 @@ export default function LevelsPage() {
                   const isOpen = id === completed + 1;
                   const unlocked = difficultyUnlocked(difficulty) && (isCompleted || isOpen);
                   const levelStars = Number(stars[`${difficulty}-${id}`]) || 0;
+                  const levelReward = rewards[`${difficulty}-${id}`];
                   return (
                     <LevelCard
                       key={`${difficulty}-${id}`}
                       id={id}
                       stars={levelStars}
+                      reward={levelReward}
                       completed={isCompleted}
                       open={unlocked}
                       difficulty={difficulty}
@@ -149,7 +167,7 @@ const numberOutline = {
   textShadow: "0 2px 4px rgba(0,0,0,0.55)",
 };
 
-function LevelCard({ id, stars, completed, open, difficulty }) {
+function LevelCard({ id, stars, reward, completed, open, difficulty }) {
   if (!open) {
     return (
       <div className="flex min-h-0 flex-col items-center gap-1">
@@ -182,19 +200,29 @@ function LevelCard({ id, stars, completed, open, difficulty }) {
       >
         <LevelArt id={id} className="absolute inset-0 h-full w-full" />
         {!completed && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(30,210,255,0.16),transparent_58%)]" />}
-        <div className="absolute inset-x-0 bottom-0 flex h-[38%] items-end justify-center bg-[linear-gradient(180deg,transparent_0%,rgba(2,12,22,.55)_55%,rgba(2,12,22,.72)_100%)] pb-1.5">
-          <span className="text-xl font-black text-white" style={numberOutline}>{id}</span>
+        <div className="absolute inset-x-0 bottom-0 flex h-[46%] flex-col items-center justify-end gap-0.5 bg-[linear-gradient(180deg,transparent_0%,rgba(2,12,22,.5)_30%,rgba(2,12,22,.82)_100%)] pb-1">
+          <span className="text-2xl font-black leading-none text-white" style={numberOutline}>{id}</span>
+          {completed && (
+            <div className="flex gap-0.5 text-[11px] leading-none">
+              {[1, 2, 3].map((star) => (
+                <span key={star} className={star <= stars ? "text-yellow-300 drop-shadow-[0_0_4px_rgba(255,210,40,0.55)]" : "text-white/25"}>★</span>
+              ))}
+            </div>
+          )}
+          {completed && reward && (
+            <div className="flex items-center gap-1 text-[7px] font-black leading-none">
+              <span className="inline-flex items-center gap-[1px] text-yellow-200">
+                <CoinIcon className="h-2 w-2" />
+                {reward.coins}
+              </span>
+              <span className="inline-flex items-center gap-[1px] text-violet-200">
+                <GemIcon className="h-2 w-2" />
+                {reward.diamonds}
+              </span>
+            </div>
+          )}
         </div>
       </Link>
-      {completed ? (
-        <div className="flex gap-0.5 text-[11px] leading-none">
-          {[1, 2, 3].map((star) => (
-            <span key={star} className={star <= stars ? "text-yellow-300 drop-shadow-[0_0_4px_rgba(255,210,40,0.55)]" : "text-white/25"}>★</span>
-          ))}
-        </div>
-      ) : (
-        <span className="text-[11px] font-black text-white/70">{id}</span>
-      )}
     </div>
   );
 }
