@@ -3,41 +3,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
 import Link from "next/link";
-import { CoinIcon, GemIcon } from "@/components/icons";
-import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
-import {
-  Float,
-  OrbitControls,
-  PerspectiveCamera,
-  RoundedBox,
-} from "@react-three/drei";
+import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
+import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice } from "@/lib/sound";
 
 /* =========================================================
-   SORTVERSE 3D
-   STEP 3D — REAL DRAG & DROP
+   SORTVERSE
+   Board rendered as layered CSS + SVG (glass tubes, moulded
+   plastic pieces, brushed-metal shelves) instead of WebGL —
+   this is the exact look from the reference art and renders
+   reliably on every device.
 ========================================================= */
 
 const CAPACITY = 4;
 
-// Object colours, matched to the reference artwork: saturated candy plastic
-// with a bright specular, not neon.
+// Moulded-plastic object colours, matched to the reference artwork.
 const COLORS = {
-  blue: "#1f6ff0",
-  red: "#e01f36",
-  yellow: "#f5c518",
-  green: "#1fbd4a",
-  purple: "#7b2fe0",
+  blue: { base: "#1d6fe0", light: "#5aa0ff", dark: "#0d47a8" },
+  red: { base: "#d6202f", light: "#ff5f66", dark: "#8f0f1c" },
+  yellow: { base: "#f0c018", light: "#ffe273", dark: "#a87a00" },
+  green: { base: "#22a72f", light: "#6fe07a", dark: "#0f6b18" },
+  purple: { base: "#7b2fd6", light: "#b57bff", dark: "#4a1690" },
 };
 
-// The anodised metal cap and base of a tube pick up the colour of whatever it
-// holds, a shade lighter than the objects themselves.
+// Cap/base collar colour, a shade brighter than the objects.
 const TUBE_COLORS = {
-  blue: "#2f86ff",
-  red: "#f03048",
-  yellow: "#ffd02b",
-  green: "#2ad45c",
-  purple: "#9448f5",
+  blue: { base: "#2f86ff", light: "#8ec6ff", dark: "#0f4fb0" },
+  red: { base: "#ef2f40", light: "#ff8f96", dark: "#920f1c" },
+  yellow: { base: "#ffce29", light: "#fff0ae", dark: "#a87a00" },
+  green: { base: "#2fca3f", light: "#9af0a4", dark: "#0f7a1c" },
+  purple: { base: "#8f42ea", light: "#cfa8ff", dark: "#4a1690" },
 };
 
 const TOTAL_TUBES = 8;
@@ -61,12 +55,14 @@ const DIFFICULTY_TIER = { normal: 0, hard: 1, expert: 2 };
 ========================================================= */
 export function difficultyParams(level, difficulty) {
   const tierIndex = DIFFICULTY_TIER[difficulty] ?? 0;
-  const progression = Math.min(Math.floor((level - 1) / 4), 2); // levels 1-4 / 5-8 / 9-12
-  const capByTier = [4, 5, 5];
+  const progression = Math.min(Math.floor((level - 1) / 4), 2);
 
+  // Colors still rise with level, but each difficulty now adds its own
+  // obstacle mechanics so Hard/Expert are not just faster versions of Normal.
+  const normalColors = [3, 4, 5][progression];
   const colorCount = Math.min(
-    Math.max(3 + tierIndex + progression, 3),
-    capByTier[tierIndex],
+    tierIndex === 0 ? normalColors : tierIndex === 1 ? Math.min(4 + progression, 5) : 5,
+    5,
   );
 
   const baseEmptyByTier = [3, 2, 1];
@@ -75,21 +71,24 @@ export function difficultyParams(level, difficulty) {
     TOTAL_TUBES - colorCount,
   );
 
-  // Professional-feel time budgets: Normal stays comfortable, Hard is
-  // noticeably tighter, Expert is the real crunch — and each still eases
-  // down a little across its own 12 levels.
   const baseSecondsByTier = [90, 75, 60];
   const decayPerLevelByTier = [2, 3, 4];
   const minSecondsByTier = [45, 35, 25];
-
   const timeSeconds = Math.max(
     minSecondsByTier[tierIndex],
     baseSecondsByTier[tierIndex] - (level - 1) * decayPerLevelByTier[tierIndex],
   );
 
-  return { colorCount, emptyTubes, timeSeconds };
-}
+  const mechanics = {
+    chains: difficulty === "normal" ? level >= 4 : true,
+    chainLayers: difficulty === "normal" ? (level >= 7 ? 2 : 1) : difficulty === "hard" ? (level >= 6 ? 2 : 1) : 2,
+    bombs: difficulty === "normal" ? level >= 10 : difficulty === "hard" ? level >= 4 : level >= 2,
+    frozen: difficulty === "normal" ? false : difficulty === "hard" ? level >= 7 : level >= 4,
+    tripleBurst: difficulty === "normal" ? level >= 8 : difficulty === "hard" ? level >= 5 : level >= 3,
+  };
 
+  return { colorCount, emptyTubes, timeSeconds, mechanics };
+}
 function hashSeed(text) {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -113,7 +112,7 @@ function mulberry32(seed) {
 }
 
 function generatePuzzle({ level, difficulty }) {
-  const { colorCount, emptyTubes } = difficultyParams(level, difficulty);
+  const { colorCount, emptyTubes, mechanics } = difficultyParams(level, difficulty);
   const nonEmptyCount = TOTAL_TUBES - emptyTubes;
   const rng = mulberry32(hashSeed(`${difficulty}:${level}`));
   const colors = PALETTE_ORDER.slice(0, colorCount);
@@ -141,6 +140,101 @@ function generatePuzzle({ level, difficulty }) {
     const pick = options[Math.floor(rng() * options.length)];
     slots[pick].push(object);
   });
+
+  // Add special pieces with solvability guarantees. Every chain color keeps
+  // at least three completely free copies elsewhere, so a locked piece can
+  // always be released by a real 3-of-a-kind match. Chain/frozen pieces are
+  // never stacked on the same colour, and bomb pieces avoid reserved colors.
+  const candidates = [];
+  slots.forEach((slot, slotIndex) => {
+    slot.forEach((object, objectIndex) => {
+      if (objectIndex < CAPACITY - 1) candidates.push({ slotIndex, objectIndex, object });
+    });
+  });
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+
+  const reservedColors = new Set();
+  const usedObjects = new Set();
+  const chooseSpecial = (count, predicate) => {
+    const chosen = [];
+    for (const candidate of candidates) {
+      if (chosen.length >= count) break;
+      if (usedObjects.has(candidate.object.id)) continue;
+      if (!predicate(candidate.object)) continue;
+      chosen.push(candidate);
+      usedObjects.add(candidate.object.id);
+    }
+    return chosen;
+  };
+
+  if (mechanics.chains) {
+    // One chained object per colour is intentional. A colour has exactly four
+    // objects, so putting two chained objects on the same colour would leave
+    // too few free copies to ever form the first match. For a 2-layer chain,
+    // the SAME object simply needs two successful 3-of-a-kind matches.
+    const chainCount = Math.min(1, colors.length);
+    const chainPicks = chooseSpecial(chainCount, (object) => !reservedColors.has(object.color));
+    chainPicks.forEach(({ object }) => {
+      object.chainLayers = mechanics.chainLayers;
+      reservedColors.add(object.color);
+    });
+
+    // Make every chain colour demonstrably solvable. Pull the four copies of
+    // that colour out, then put the chained copy plus the three free copies
+    // on top of four different tubes. No copy is buried behind another ball.
+    chainPicks.forEach(({ object: chainObject }) => {
+      const chainColor = chainObject.color;
+      const chainObjects = [];
+      slots.forEach((slot) => {
+        for (let i = slot.length - 1; i >= 0; i -= 1) {
+          if (slot[i].color === chainColor) chainObjects.push(slot.splice(i, 1)[0]);
+        }
+      });
+
+      const freeObjects = chainObjects.filter((item) => item.id !== chainObject.id && !item.chainLayers && !item.frozen);
+      const ordered = [chainObject, ...freeObjects.slice(0, 3)];
+      const targets = slots
+        .map((slot, index) => ({ index, room: CAPACITY - slot.length }))
+        .filter((entry) => entry.room > 0)
+        .sort((a, b) => b.room - a.room)
+        .slice(0, ordered.length);
+
+      ordered.forEach((item, index) => {
+        const target = targets[index];
+        if (target) slots[target.index].push(item);
+      });
+
+      // In the unlikely event a reserved copy could not be placed by the
+      // safety pass, put it back into the first tube with room rather than
+      // dropping an object from the puzzle.
+      const placedIds = new Set(ordered.slice(0, targets.length).map((item) => item.id));
+      chainObjects.forEach((item) => {
+        if (placedIds.has(item.id)) return;
+        const fallback = slots.find((slot) => slot.length < CAPACITY);
+        if (fallback) fallback.push(item);
+      });
+    });
+  }
+
+  if (mechanics.frozen) {
+    const frozenCount = difficulty === "expert" ? 2 : 1;
+    const frozenPicks = chooseSpecial(frozenCount, (object) => !reservedColors.has(object.color));
+    frozenPicks.forEach(({ object }) => {
+      object.frozen = true;
+      reservedColors.add(object.color);
+    });
+  }
+
+  if (mechanics.bombs) {
+    const bombCount = difficulty === "expert" ? 2 : 1;
+    const bombPicks = chooseSpecial(bombCount, (object) => !reservedColors.has(object.color));
+    bombPicks.forEach(({ object }) => {
+      object.bombTurns = difficulty === "expert" ? 5 : 6;
+    });
+  }
 
   // Extremely unlikely, but guard against dealing an already-solved board.
   const alreadySolved = slots.every(
@@ -191,18 +285,24 @@ export default function GameplayScene({
   paused = false,
   onTogglePause,
 }) {
-  const { timeSeconds: initialTime } = difficultyParams(level, difficulty);
+  const { timeSeconds: initialTime, mechanics } = difficultyParams(level, difficulty);
 
   const [tubes, setTubes] = useState(() => generatePuzzle({ level, difficulty }));
   const [selected, setSelected] = useState(null);
   const [dragging, setDragging] = useState(null);
+  const [dragPoint, setDragPoint] = useState(null);
+  const [shakingTubeId, setShakingTubeId] = useState(null);
   const [moves, setMoves] = useState(0);
   const [message, setMessage] = useState("Drag an object to sort it");
-  const [sceneReady, setSceneReady] = useState(false);
+  const [mechanicFlash, setMechanicFlash] = useState(null);
+  const [pieceEffects, setPieceEffects] = useState({});
+  const [tubeBursts, setTubeBursts] = useState({});
+  const [completionNotice, setCompletionNotice] = useState(false);
   const [timeLeft, setTimeLeft] = useState(initialTime);
   const [timeUp, setTimeUp] = useState(false);
   const { addRewards, completeLevel } = usePlayerStats();
   const rewardRecorded = useRef(false);
+  const completedRef = useRef(false);
 
   const completed = useMemo(() => {
     return tubes.every((tube) => {
@@ -210,7 +310,8 @@ export default function GameplayScene({
 
       return (
         tube.objects.length === CAPACITY &&
-        tube.objects.every((object) => object.color === tube.objects[0].color)
+        tube.objects.every((object) => object.color === tube.objects[0].color) &&
+        tube.objects.every((object) => object.chainLayers === 0 && !object.frozen && object.bombTurns == null)
       );
     });
   }, [tubes]);
@@ -240,6 +341,10 @@ export default function GameplayScene({
   useEffect(() => {
     if (!completed || rewardRecorded.current) return;
     rewardRecorded.current = true;
+    completedRef.current = true;
+    setCompletionNotice(true);
+    playKidVoice(`Level complete! You got ${coinReward} gold and ${diamondReward} diamonds!`);
+    window.setTimeout(() => playKidVoice("Amazing! Great job!"), 850);
 
     const progressKey = "sortverse-difficulty-progress";
     const starsKey = "sortverse-level-stars";
@@ -275,22 +380,74 @@ export default function GameplayScene({
     }
   }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, diamondReward]);
 
-  const handleObjectStart = useCallback((tubeId, objectIndex, object) => {
-    if (paused) return;
+  const flashMechanic = useCallback((text) => {
+    setMechanicFlash(text);
+    window.clearTimeout(flashMechanic.timeout);
+    flashMechanic.timeout = window.setTimeout(() => setMechanicFlash(null), 1100);
+  }, []);
 
-    setDragging({
-      tubeId,
-      objectIndex,
-      object,
+  const triggerPieceEffects = useCallback((ids, type) => {
+    if (!ids?.length) return;
+    setPieceEffects((current) => {
+      const next = { ...current };
+      ids.forEach((id) => { next[id] = type; });
+      return next;
     });
+    window.setTimeout(() => {
+      setPieceEffects((current) => {
+        const next = { ...current };
+        ids.forEach((id) => {
+          if (next[id] === type) delete next[id];
+        });
+        return next;
+      });
+    }, type === "bomb" ? 720 : 560);
+  }, []);
 
-    setSelected({
-      tubeId,
-      objectIndex,
+  const triggerTubeBurst = useCallback((tubeIds, type = "explosion") => {
+    if (!tubeIds?.length) return;
+    setTubeBursts((current) => {
+      const next = { ...current };
+      tubeIds.forEach((id) => { next[id] = type; });
+      return next;
     });
+    window.setTimeout(() => {
+      setTubeBursts((current) => {
+        const next = { ...current };
+        tubeIds.forEach((id) => {
+          if (next[id] === type) delete next[id];
+        });
+        return next;
+      });
+    }, type === "explosion" ? 780 : 620);
+  }, []);
 
-    setMessage("Drop into a matching tube");
-  }, [paused]);
+  const triggerWrongMove = useCallback((tubeId) => {
+    setShakingTubeId(tubeId);
+    window.setTimeout(() => setShakingTubeId((current) => current === tubeId ? null : current), 420);
+    playWrongMoveSound();
+    setMessage("Wrong move!");
+  }, []);
+
+  const handleObjectStart = useCallback(
+    (tubeId, objectIndex, object) => {
+      if (paused) return;
+      if (object.chainLayers > 0) {
+        flashMechanic(`🔗 Locked! Put 3 free ${object.color} pieces together to break the chain`);
+        triggerWrongMove(tubeId);
+        return;
+      }
+      if (object.frozen) {
+        flashMechanic(`❄️ Frozen! Put 3 free ${object.color} pieces together to melt the ice`);
+        triggerWrongMove(tubeId);
+        return;
+      }
+      setDragging({ tubeId, objectIndex, object });
+      setSelected({ tubeId, objectIndex });
+      setMessage("Drop into a matching tube");
+    },
+    [paused, flashMechanic, triggerWrongMove],
+  );
 
   const handleObjectEnd = useCallback(
     (targetTubeId) => {
@@ -299,218 +456,298 @@ export default function GameplayScene({
       const sourceTubeId = dragging.tubeId;
 
       if (sourceTubeId === targetTubeId) {
+        triggerWrongMove(targetTubeId);
         setDragging(null);
         setSelected(null);
-        setMessage("Choose another tube");
         return;
       }
+
+      const sourceNow = tubes.find((tube) => tube.id === sourceTubeId);
+      const targetNow = tubes.find((tube) => tube.id === targetTubeId);
+      const object = sourceNow?.objects[sourceNow.objects.length - 1];
+      const targetTop = targetNow?.objects[targetNow.objects.length - 1];
+
+      const validTarget = Boolean(
+        object &&
+        targetNow &&
+        targetNow.objects.length < CAPACITY &&
+        (!targetTop || targetTop.color === object.color),
+      );
+
+      if (!validTarget) {
+        triggerWrongMove(targetTubeId);
+        setDragging(null);
+        setSelected(null);
+        return;
+      }
+
+      const willCompleteTube =
+        targetNow.objects.length + 1 === CAPACITY &&
+        targetNow.objects.every((item) => item.color === object.color);
+      const willTriple =
+        mechanics.tripleBurst &&
+        targetNow.objects.length + 1 >= 3 &&
+        [...targetNow.objects, object].slice(-3).every((item) => item.color === object.color);
+
+      const sameColorLockedIds = tubes.flatMap((tube) =>
+        tube.objects.filter((item) => item.color === object.color && item.chainLayers > 0).map((item) => item.id),
+      );
+      const sameColorFrozenIds = tubes.flatMap((tube) =>
+        tube.objects.filter((item) => item.color === object.color && item.frozen).map((item) => item.id),
+      );
+      const tripleTail = willTriple ? [...targetNow.objects, object].slice(-3) : [];
+      const willBurstTriple = willTriple && targetNow.objects.length + 1 < CAPACITY && tripleTail.every((item) => item.chainLayers === 0 && !item.frozen);
+      const bombDetonationTubeIds = tubes
+        .filter((tube) => tube.objects.some((item) => item.bombTurns != null && item.bombTurns <= 1))
+        .map((tube) => tube.id);
 
       setTubes((current) => {
         const next = current.map((tube) => ({
           ...tube,
-          objects: [...tube.objects],
+          objects: tube.objects.map((item) => ({ ...item })),
         }));
-
         const source = next.find((tube) => tube.id === sourceTubeId);
         const target = next.find((tube) => tube.id === targetTubeId);
-
         if (!source || !target) return current;
 
-        const object = source.objects[source.objects.length - 1];
+        const moving = source.objects.pop();
+        if (!moving) return current;
+        target.objects.push(moving);
 
-        if (!object) return current;
+        // A matching triple breaks one chain layer and thaws frozen pieces
+        // of the same colour. A second triple can burst three free pieces,
+        // giving the game a Candy-Crush-style payoff without changing the
+        // core tube-sorting rules.
+        if (target.objects.length >= 3 && target.objects.slice(-3).every((item) => item.color === object.color)) {
+          let brokeChain = false;
+          let thawedIce = false;
+          next.forEach((tube) => {
+            tube.objects.forEach((item) => {
+              if (item.color !== object.color) return;
+              if (item.chainLayers > 0) {
+                item.chainLayers -= 1;
+                brokeChain = true;
+              }
+              if (item.frozen) {
+                item.frozen = false;
+                thawedIce = true;
+              }
+            });
+          });
+          if (brokeChain) flashMechanic(`🔗 Chain layer broken — ${object.color} unlocked!`);
+          if (thawedIce) flashMechanic(`❄️ Ice melted — ${object.color} freed!`);
 
-        const targetTop = target.objects[target.objects.length - 1];
-
-        const validTarget =
-          target.objects.length < CAPACITY &&
-          (!targetTop || targetTop.color === object.color);
-
-        if (!validTarget) {
-          return current;
+          if (mechanics.tripleBurst && !brokeChain && !thawedIce) {
+            const freeTripleIndex = target.objects.findIndex((item, index, arr) =>
+              index >= arr.length - 3 && item.chainLayers === 0 && !item.frozen,
+            );
+            const tail = target.objects.slice(-3);
+            if (tail.length === 3 && tail.every((item) => item.color === object.color && item.chainLayers === 0 && !item.frozen)) {
+              target.objects.splice(target.objects.length - 3, 3);
+              flashMechanic(`✨ Triple clear! ${object.color} pieces popped`);
+            } else if (freeTripleIndex >= 0) {
+              flashMechanic(`✨ ${object.color} triple ready!`);
+            }
+          }
         }
 
-        source.objects.pop();
-        target.objects.push(object);
+        // Bomb fuse: every successful move advances all active bombs. A
+        // detonating bomb clears the rest of its tube, then disappears.
+        let detonated = false;
+        next.forEach((tube) => {
+          tube.objects.forEach((item) => {
+            if (item.bombTurns == null) return;
+            item.bombTurns -= 1;
+          });
+        });
+        next.forEach((tube) => {
+          const bombIndex = tube.objects.findIndex((item) => item.bombTurns != null && item.bombTurns <= 0);
+          if (bombIndex >= 0) {
+            tube.objects = tube.objects.slice(0, bombIndex + 1).filter((item) => item.bombTurns == null);
+            detonated = true;
+          }
+        });
+        if (detonated) flashMechanic("💥 BOOM! Bomb cleared its tube!");
 
         return next;
       });
 
+      if (sameColorLockedIds.length && willTriple) {
+        triggerPieceEffects(sameColorLockedIds, "chain-break");
+        playChainBreakSound();
+        playKidVoice("Yay! Chain broken!");
+      }
+      if (sameColorFrozenIds.length && willTriple) { triggerPieceEffects(sameColorFrozenIds, "ice-melt"); playKidVoice("Wow! Ice melted!"); }
+      if (willBurstTriple) {
+        triggerTubeBurst([targetTubeId], "triple");
+        playPopBurstSound();
+        playKidVoice("Pop! Awesome!");
+      }
+      if (bombDetonationTubeIds.length) {
+        triggerTubeBurst(bombDetonationTubeIds, "explosion");
+        playBombExplosionSound();
+        playKidVoice("Boom!");
+      }
+
+      playDragDropSound();
+      if (willCompleteTube) {
+        playTubeCompleteSound();
+        playGoodVoice();
+        window.setTimeout(() => playKidVoice("Wow! Tube complete!"), 120);
+      }
+
       setMoves((value) => value + 1);
       setDragging(null);
       setSelected(null);
-      setMessage("Nice move!");
+      setMessage(willCompleteTube ? "Good! Tube complete!" : willTriple ? (sameColorLockedIds.length ? "Chain broken!" : "Triple!") : "Nice move!");
     },
-    [dragging],
+    [dragging, tubes, triggerWrongMove, mechanics, flashMechanic, triggerPieceEffects, triggerTubeBurst],
   );
 
   const handleInvalidDrop = useCallback(() => {
     if (!dragging) return;
-
+    playWrongMoveSound();
     setDragging(null);
     setSelected(null);
-    setMessage("That object cannot go there");
+    setMessage("Wrong move!");
   }, [dragging]);
 
   const resetGame = useCallback(() => {
+    playIntroChime();
     setTubes(generatePuzzle({ level, difficulty }));
     setSelected(null);
     setDragging(null);
+    setDragPoint(null);
+    setShakingTubeId(null);
+    setPieceEffects({});
+    setTubeBursts({});
     setMoves(0);
     setMessage("Drag an object to sort it");
+    setCompletionNotice(false);
     rewardRecorded.current = false;
+    completedRef.current = false;
     setTimeLeft(initialTime);
     setTimeUp(false);
   }, [level, difficulty, initialTime]);
 
+  // Drag follows the pointer; drop target is whichever tube the pointer is
+  // over when released (checked via elementFromPoint, since the dragged
+  // piece itself is what's under the cursor).
+  const boardRef = useRef(null);
+
+  useEffect(() => {
+    if (!dragging) return undefined;
+
+    const move = (event) => {
+      const point = "touches" in event ? event.touches[0] : event;
+      if (!point) return;
+      setDragPoint({ x: point.clientX, y: point.clientY });
+    };
+
+    const release = (event) => {
+      const point = "changedTouches" in event ? event.changedTouches[0] : event;
+      const x = point?.clientX;
+      const y = point?.clientY;
+
+      let landedTubeId = null;
+      if (x != null && y != null) {
+        const prevPointerEvents = dragLayerRef.current?.style.pointerEvents;
+        if (dragLayerRef.current) dragLayerRef.current.style.pointerEvents = "none";
+        const el = document.elementFromPoint(x, y);
+        if (dragLayerRef.current) dragLayerRef.current.style.pointerEvents = prevPointerEvents ?? "";
+        const tubeEl = el?.closest("[data-tube-id]");
+        if (tubeEl) landedTubeId = Number(tubeEl.dataset.tubeId);
+      }
+
+      if (landedTubeId !== null) {
+        handleObjectEnd(landedTubeId);
+      } else {
+        handleInvalidDrop();
+      }
+      setDragPoint(null);
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("touchend", release);
+
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", release);
+    };
+  }, [dragging, handleObjectEnd, handleInvalidDrop]);
+
+  const dragLayerRef = useRef(null);
+
   return (
-    <div className="relative h-full w-full overflow-hidden bg-transparent">
-      {!sceneReady && <FastTubePreview />}
-      <Canvas
-        className="relative z-10"
-        dpr={[1, 1.5]}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: "high-performance",
-        }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
-          requestAnimationFrame(() => setSceneReady(true));
-        }}
-        shadows
-      >
-        <PerspectiveCamera
-          makeDefault
-          position={[0, 1.1, 11.5]}
-          fov={52}
-          near={0.1}
-          far={100}
-        />
+    <div ref={boardRef} className="relative h-full w-full touch-none select-none overflow-hidden bg-transparent">
+      <div className="pointer-events-none absolute left-1/2 top-[8.5vh] z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-[#041827]/70 px-2.5 py-1 text-[7px] font-bold text-white/55 backdrop-blur">
+        {mechanics.chains && <span>🔗 Chains</span>}
+        {mechanics.frozen && <span>❄️ Ice</span>}
+        {mechanics.bombs && <span>💣 Bombs</span>}
+        {mechanics.tripleBurst && <span>✨ Triples</span>}
+      </div>
 
-        <fog attach="fog" args={["#02101d", 9, 26]} />
+      <div className="absolute inset-x-0 top-[8vh] bottom-[16vh] flex flex-col items-center justify-center gap-[2.6vh] px-3">
+        <div className="flex w-full flex-col items-center">
+          <TubeRow
+            tubes={tubes.slice(0, 4)}
+            selected={selected}
+            dragging={dragging}
+            onObjectStart={handleObjectStart}
+            shakingTubeId={shakingTubeId}
+            mechanics={mechanics}
+            pieceEffects={pieceEffects}
+            tubeBursts={tubeBursts}
+          />
+          <Shelf />
+        </div>
+        <div className="flex w-full flex-col items-center">
+          <TubeRow
+            tubes={tubes.slice(4, 8)}
+            selected={selected}
+            dragging={dragging}
+            onObjectStart={handleObjectStart}
+            shakingTubeId={shakingTubeId}
+            mechanics={mechanics}
+            pieceEffects={pieceEffects}
+            tubeBursts={tubeBursts}
+          />
+          <Shelf />
+        </div>
+      </div>
 
-        {/* Soft fill so nothing goes pure black against the factory plate */}
-        <ambientLight intensity={1.15} />
-        <hemisphereLight args={["#bfe9ff", "#06243a", 1.1]} />
+      {/* Ghost of the dragged piece, following the pointer */}
+      <div ref={dragLayerRef} className="pointer-events-none absolute inset-0 z-40">
+        {dragging && dragPoint && (
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)]"
+            style={{ left: dragPoint.x, top: dragPoint.y, width: 52, height: 52 }}
+          >
+            <div className="relative h-full w-full">
+              <ObjectShape type={dragging.object.type} colors={COLORS[dragging.object.color]} size={52} />
+              {dragging.object.chainLayers > 0 && <ChainVisual layers={dragging.object.chainLayers} />}
+              {dragging.object.frozen && <IceVisual />}
+              {dragging.object.bombTurns != null && <BombVisual turns={dragging.object.bombTurns} />}
+            </div>
+          </div>
+        )}
+      </div>
 
-        {/* Key light, slightly to the right and above, like the reference */}
-        <directionalLight
-          position={[4.5, 8, 7]}
-          intensity={2.4}
-          castShadow
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
-        />
-
-        {/* Cool rim from behind-left carves the glass edges out of the dark */}
-        <directionalLight position={[-6, 3, -4]} intensity={1.5} color="#63d4ff" />
-
-        {/* Practical lights that mimic the factory strip lighting */}
-        <pointLight position={[0, 3.4, 4.5]} intensity={5.5} distance={16} color="#8fe4ff" />
-        <pointLight position={[-5, 0.4, 2.5]} intensity={3} distance={12} color="#2f8dff" />
-        <pointLight position={[5, -1.2, 2.5]} intensity={2.6} distance={12} color="#ffb347" />
-
-        <PuzzlePlatform position={[0, -0.03, -0.08]} />
-        <PuzzlePlatform position={[0, -2.83, -0.08]} />
-
-        {/* =================================================
-            INTERACTIVE TUBES
-        ================================================= */}
-
-        <InteractiveTube
-          tube={tubes[0]}
-          position={[-2.1, 1.35, 0]}
-          selected={selected?.tubeId === 0}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[1]}
-          position={[-0.7, 1.35, 0]}
-          selected={selected?.tubeId === 1}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[2]}
-          position={[0.7, 1.35, 0]}
-          selected={selected?.tubeId === 2}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[3]}
-          position={[2.1, 1.35, 0]}
-          selected={selected?.tubeId === 3}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[4]}
-          position={[-2.1, -1.45, 0]}
-          selected={selected?.tubeId === 4}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[5]}
-          position={[-0.7, -1.45, 0]}
-          selected={selected?.tubeId === 5}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[6]}
-          position={[0.7, -1.45, 0]}
-          selected={selected?.tubeId === 6}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <InteractiveTube
-          tube={tubes[7]}
-          position={[2.1, -1.45, 0]}
-          selected={selected?.tubeId === 7}
-          dragging={dragging}
-          onObjectStart={handleObjectStart}
-          onTubeDrop={handleObjectEnd}
-          onInvalidDrop={handleInvalidDrop}
-        />
-
-        <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          enableRotate={false}
-          target={[0, 0, 0]}
-        />
-      </Canvas>
+      {mechanicFlash && (
+        <div className="pointer-events-none absolute top-[13%] left-1/2 z-40 -translate-x-1/2 rounded-full border border-yellow-300/30 bg-[#061b2b]/95 px-4 py-2 text-[10px] font-black text-yellow-100 shadow-[0_0_22px_rgba(255,210,70,.22)] backdrop-blur-md">
+          {mechanicFlash}
+        </div>
+      )}
 
       {/* =================================================
           STATUS
       ================================================= */}
 
-      <div className="pointer-events-none absolute bottom-[86px] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-cyan-300/15 bg-[#031a2a]/80 px-3 py-1.5 text-[9px] font-semibold text-cyan-100/65 backdrop-blur">
+      <div className={`pointer-events-none absolute bottom-[86px] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[9px] font-semibold backdrop-blur ${message.toLowerCase().includes("wrong") ? "border-red-400/30 bg-red-950/80 text-red-300" : message.toLowerCase().includes("good") ? "border-emerald-300/25 bg-emerald-950/70 text-emerald-200" : "border-cyan-300/15 bg-[#031a2a]/80 text-cyan-100/65"}`}>
         Moves: {moves} · {message}
       </div>
 
@@ -540,6 +777,18 @@ export default function GameplayScene({
         </div>
       </div>
 
+      {completionNotice && (
+        <div className="pointer-events-none absolute left-1/2 top-[9%] z-[60] w-[92%] -translate-x-1/2">
+          <div className="level-complete-banner rounded-2xl border border-yellow-200/40 bg-gradient-to-b from-[#173f58] to-[#08243a] px-4 py-3 text-center shadow-[0_0_30px_rgba(255,210,70,.28)]">
+            <div className="text-[9px] font-black uppercase tracking-[0.22em] text-yellow-200">Level {level} Complete!</div>
+            <div className="mt-1 flex items-center justify-center gap-4 text-sm font-black">
+              <span className="inline-flex items-center gap-1.5 text-yellow-200">+{coinReward}<HomeCoinIcon className="h-5 w-5" /></span>
+              <span className="inline-flex items-center gap-1.5 text-cyan-100">+{diamondReward}<HomeGemIcon className="h-5 w-5" /></span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {completed && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
           <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
@@ -559,8 +808,8 @@ export default function GameplayScene({
               <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
                 <div className="mt-1 flex items-center justify-center gap-3 text-sm font-black">
-                  <span className="inline-flex items-center gap-1.5 text-yellow-300"><span>+{100 * level}</span><CoinIcon className="h-4 w-4" /></span>
-                  <span className="inline-flex items-center gap-1.5 text-violet-200"><span>+{earnedStars}</span><GemIcon className="h-4 w-4" /></span>
+                  <span className="inline-flex items-center gap-1.5 text-yellow-300"><span>+{100 * level}</span><HomeCoinIcon className="h-4 w-4" /></span>
+                  <span className="inline-flex items-center gap-1.5 text-violet-200"><span>+{earnedStars}</span><HomeGemIcon className="h-4 w-4" /></span>
                 </div>
               </div>
             </div>
@@ -677,7 +926,7 @@ export default function GameplayScene({
       {/* Reset button */}
       <button
         onClick={resetGame}
-        className="absolute bottom-[88px] right-3 z-30 rounded-full border border-white/10 bg-[#06243a]/80 px-2.5 py-1.5 text-[8px] font-bold text-white/45 backdrop-blur transition hover:text-white/80"
+        className="absolute bottom-[88px] right-3 z-30 rounded-full border border-cyan-300/25 bg-[#06243a]/90 px-3 py-1.5 text-[8px] font-black text-cyan-100/80 shadow-[0_0_10px_rgba(0,190,255,0.10)] backdrop-blur transition hover:border-cyan-200/70 hover:bg-[#0b3b59] hover:text-white hover:shadow-[0_0_16px_rgba(0,190,255,0.28)] active:scale-95"
       >
         Reset
       </button>
@@ -685,24 +934,25 @@ export default function GameplayScene({
   );
 }
 
-function FastTubePreview() {
-  const tubes = [
-    ["#169dff", "●"],
-    ["#ff344b", "◆"],
-    ["#ffc72b", "★"],
-    ["#1edc5d", "▲"],
-  ];
+/* =========================================================
+   TUBE ROW
+========================================================= */
 
+function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mechanics, pieceEffects, tubeBursts }) {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-3 pb-24 transition-opacity">
-      {tubes.map(([color, shape]) => (
-        <div key={color} className="relative h-40 w-[52px] rounded-b-2xl border-x-2 border-b-2 border-cyan-100/50 bg-gradient-to-r from-white/20 via-white/5 to-white/15 shadow-[inset_0_0_14px_rgba(130,225,255,.2)]">
-          <span className="absolute -left-1 -right-1 -top-1 h-3 rounded-full border border-white/60 shadow-[0_0_10px_currentColor]" style={{ backgroundColor: color, color }} />
-          {[0, 1, 2].map((item) => (
-            <span key={item} className="absolute left-1/2 -translate-x-1/2 text-2xl font-black drop-shadow-[0_0_7px_currentColor]" style={{ bottom: `${18 + item * 38}px`, color }}>{shape}</span>
-          ))}
-          <span className="absolute -bottom-1 -left-1 -right-1 h-3 rounded-full border border-white/50" style={{ backgroundColor: color }} />
-        </div>
+    <div className="relative z-10 flex w-full items-end justify-center gap-[3.2vw]">
+      {tubes.map((tube) => (
+        <Tube
+          key={tube.id}
+          tube={tube}
+          selected={selected?.tubeId === tube.id}
+          dragging={dragging}
+          onObjectStart={onObjectStart}
+          shaking={shakingTubeId === tube.id}
+          mechanics={mechanics}
+          pieceEffects={pieceEffects}
+          tubeBurst={tubeBursts?.[tube.id]}
+        />
       ))}
     </div>
   );
@@ -710,352 +960,288 @@ function FastTubePreview() {
 
 /* =========================================================
    SHELF
-   Brushed-metal slab the tubes stand on: a bevelled body, a
-   lighter machined top plate, a cyan edge strip and angled
-   supports — the same silhouette as the reference artwork.
+   Brushed grey-blue metal slab the tubes stand on, with a
+   machined top plate and angled end caps.
 ========================================================= */
 
-function PuzzlePlatform({ position }) {
+function Shelf() {
   return (
-    <group position={position}>
-      {/* Main body */}
-      <RoundedBox args={[6.8, 0.36, 1.5]} radius={0.09} smoothness={4} castShadow receiveShadow>
-        <meshStandardMaterial color="#2a4964" metalness={0.9} roughness={0.34} />
-      </RoundedBox>
-
-      {/* Machined top plate the tubes actually sit on */}
-      <RoundedBox
-        args={[6.45, 0.12, 1.26]}
-        radius={0.04}
-        smoothness={4}
-        position={[0, 0.22, 0]}
-        castShadow
-        receiveShadow
+    <div className="relative -mt-[2.2vh] w-[92%] shrink-0" style={{ height: "3.6vh", minHeight: 22, maxHeight: 34 }}>
+      <div
+        className="absolute inset-0 rounded-[22%] shadow-[0_8px_16px_rgba(0,0,0,0.45)]"
+        style={{
+          background: "linear-gradient(180deg, #7c93a7 0%, #5c7387 42%, #384b5c 100%)",
+          border: "1px solid rgba(255,255,255,0.12)",
+        }}
       >
-        <meshStandardMaterial color="#8aa8bd" metalness={0.95} roughness={0.22} />
-      </RoundedBox>
-
-      {/* Darker recessed front face */}
-      <mesh position={[0, -0.05, 0.74]}>
-        <boxGeometry args={[6.4, 0.2, 0.03]} />
-        <meshStandardMaterial color="#14283a" metalness={0.8} roughness={0.45} />
-      </mesh>
-
-      {/* Cyan edge strip */}
-      <mesh position={[0, -0.16, 0.755]}>
-        <boxGeometry args={[6.0, 0.06, 0.03]} />
-        <meshStandardMaterial color="#35c8ff" emissive="#0f9ede" emissiveIntensity={1.5} toneMapped={false} />
-      </mesh>
-
-      {/* Angled side supports */}
-      {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * 3.2, -0.14, 0]} rotation={[0, 0, side * 0.22]} castShadow>
-          <boxGeometry args={[0.2, 0.52, 1.38]} />
-          <meshStandardMaterial color="#16293a" metalness={0.86} roughness={0.32} />
-        </mesh>
-      ))}
-
-      {/* Warm under-glow, like light bouncing off the factory floor */}
-      <mesh position={[0, -0.24, 0.2]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[6.2, 0.9]} />
-        <meshBasicMaterial color="#0a2a44" transparent opacity={0.45} depthWrite={false} />
-      </mesh>
-    </group>
+        <div
+          className="absolute inset-x-[3%] top-[16%] rounded-full"
+          style={{ height: "22%", background: "rgba(255,255,255,0.28)" }}
+        />
+        <div
+          className="absolute inset-x-0 bottom-0 rounded-b-[22%]"
+          style={{ height: "40%", background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.35))" }}
+        />
+      </div>
+      {/* end caps */}
+      <div className="absolute -left-[3%] top-[10%] h-[80%] w-[6%] rounded-[30%]" style={{ background: "linear-gradient(180deg,#8fa5b8,#465a6c)" }} />
+      <div className="absolute -right-[3%] top-[10%] h-[80%] w-[6%] rounded-[30%]" style={{ background: "linear-gradient(180deg,#8fa5b8,#465a6c)" }} />
+    </div>
   );
 }
 
 /* =========================================================
-   INTERACTIVE TUBE
-   Thick borosilicate-looking glass with a metal cap and base
-   in the colour of its contents.
+   TUBE
+   A glass cylinder standing on a two-tier metal shelf, with a
+   coloured collar on top and a matching base — same silhouette
+   as the reference artwork.
 ========================================================= */
 
-function InteractiveTube({
-  tube,
-  position,
-  selected,
-  dragging,
-  onObjectStart,
-  onTubeDrop,
-  onInvalidDrop,
-}) {
+function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pieceEffects, tubeBurst }) {
   const topObjectIndex = tube.objects.length - 1;
+  const topObject = tube.objects[topObjectIndex];
+  const tubeColor = TUBE_COLORS[tube.objects[0]?.color] || TUBE_COLORS[tube.color] || TUBE_COLORS.blue;
 
-  const tubeColor =
-    TUBE_COLORS[tube.objects[0]?.color] || TUBE_COLORS[tube.color] || "#2f86ff";
-
-  return (
-    <group position={position}>
-      {/* Invisible drop area — larger than the glass so drops feel forgiving */}
-      <mesh
-        onPointerUp={(event) => {
-          event.stopPropagation();
-          onTubeDrop(tube.id);
-        }}
-        onPointerMissed={() => {
-          if (dragging) onInvalidDrop();
-        }}
-      >
-        <cylinderGeometry args={[0.6, 0.6, 2.6, 24]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-
-      {/* Glass barrel */}
-      <mesh position={[0, 0.05, 0]} renderOrder={2}>
-        <cylinderGeometry args={[0.42, 0.42, 2.2, 48, 1, true]} />
-        <meshPhysicalMaterial
-          color="#cdefff"
-          transparent
-          opacity={0.22}
-          roughness={0.04}
-          metalness={0}
-          transmission={0.6}
-          thickness={0.4}
-          ior={1.45}
-          clearcoat={1}
-          clearcoatRoughness={0.06}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Rounded glass floor */}
-      <mesh position={[0, -1.02, 0]} scale={[1, 0.45, 1]} renderOrder={2}>
-        <sphereGeometry args={[0.42, 32, 20, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
-        <meshPhysicalMaterial
-          color="#cdefff"
-          transparent
-          opacity={0.24}
-          roughness={0.05}
-          transmission={0.55}
-          thickness={0.4}
-          ior={1.45}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Specular streaks down the glass — what sells it as real glass */}
-      <mesh position={[-0.2, 0.1, 0.4]} rotation={[0, 0.35, 0]} renderOrder={3}>
-        <planeGeometry args={[0.07, 1.85]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} depthWrite={false} />
-      </mesh>
-      <mesh position={[0.26, 0.05, 0.36]} rotation={[0, -0.45, 0]} renderOrder={3}>
-        <planeGeometry args={[0.035, 1.6]} />
-        <meshBasicMaterial color="#d9f4ff" transparent opacity={0.18} depthWrite={false} />
-      </mesh>
-
-      {/* Metal cap */}
-      <group position={[0, 1.2, 0]}>
-        <mesh castShadow>
-          <cylinderGeometry args={[0.47, 0.47, 0.2, 48]} />
-          <meshStandardMaterial
-            color={tubeColor}
-            metalness={0.85}
-            roughness={0.24}
-            emissive={tubeColor}
-            emissiveIntensity={selected ? 0.75 : 0.28}
-          />
-        </mesh>
-        <mesh position={[0, 0.11, 0]}>
-          <cylinderGeometry args={[0.43, 0.47, 0.06, 48]} />
-          <meshStandardMaterial color="#ffffff" metalness={0.6} roughness={0.15} opacity={0.75} transparent />
-        </mesh>
-        <mesh position={[0, -0.12, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.45, 0.035, 12, 48]} />
-          <meshStandardMaterial
-            color={tubeColor}
-            emissive={tubeColor}
-            emissiveIntensity={selected ? 2.2 : 1.1}
-            metalness={0.7}
-            roughness={0.2}
-            toneMapped={false}
-          />
-        </mesh>
-      </group>
-
-      {/* Metal base */}
-      <group position={[0, -1.15, 0]}>
-        <mesh castShadow>
-          <cylinderGeometry args={[0.47, 0.52, 0.22, 48]} />
-          <meshStandardMaterial
-            color={tubeColor}
-            metalness={0.82}
-            roughness={0.28}
-            emissive={tubeColor}
-            emissiveIntensity={0.2}
-          />
-        </mesh>
-        <mesh position={[0, 0.13, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.45, 0.032, 12, 48]} />
-          <meshStandardMaterial
-            color={tubeColor}
-            emissive={tubeColor}
-            emissiveIntensity={0.85}
-            metalness={0.7}
-            roughness={0.22}
-            toneMapped={false}
-          />
-        </mesh>
-        <mesh position={[0, -0.14, 0]}>
-          <cylinderGeometry args={[0.5, 0.42, 0.08, 48]} />
-          <meshStandardMaterial color="#15293a" metalness={0.9} roughness={0.3} />
-        </mesh>
-      </group>
-
-      {/* Contents */}
-      {tube.objects.map((object, index) => (
-        <DraggableObject
-          key={object.id}
-          object={object}
-          position={[0, -0.62 + index * 0.5, index === topObjectIndex ? 0.04 : 0]}
-          tubeId={tube.id}
-          objectIndex={index}
-          draggable={index === topObjectIndex}
-          onStart={onObjectStart}
-        />
-      ))}
-    </group>
-  );
-}
-
-/* =========================================================
-   OBJECT GEOMETRY
-   Flat-facing extruded shapes so a star reads as a star from
-   the fixed camera, exactly like the reference board.
-========================================================= */
-
-const EXTRUDE = {
-  depth: 0.16,
-  bevelEnabled: true,
-  bevelSegments: 4,
-  bevelSize: 0.045,
-  bevelThickness: 0.04,
-  curveSegments: 12,
-};
-
-function buildStarGeometry() {
-  const shape = new THREE.Shape();
-  const outer = 0.3;
-  const inner = 0.14;
-
-  for (let i = 0; i < 10; i++) {
-    const angle = (i * Math.PI) / 5 - Math.PI / 2;
-    const radius = i % 2 === 0 ? outer : inner;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-
-  shape.closePath();
-  return new THREE.ExtrudeGeometry(shape, EXTRUDE).center();
-}
-
-function buildTriangleGeometry() {
-  const shape = new THREE.Shape();
-  const radius = 0.32;
-
-  for (let i = 0; i < 3; i++) {
-    const angle = (i * 2 * Math.PI) / 3 - Math.PI / 2;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-
-  shape.closePath();
-  return new THREE.ExtrudeGeometry(shape, EXTRUDE).center();
-}
-
-// Built once and shared by every object on the board.
-const STAR_GEOMETRY = buildStarGeometry();
-const TRIANGLE_GEOMETRY = buildTriangleGeometry();
-
-/* =========================================================
-   DRAGGABLE OBJECT
-========================================================= */
-
-function DraggableObject({
-  object,
-  position,
-  tubeId,
-  objectIndex,
-  draggable,
-  onStart,
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  const handlePointerDown = (event) => {
-    if (!draggable) return;
+  const startFromTube = (event) => {
+    if (!topObject || dragging || event.button === 2) return;
+    event.preventDefault();
     event.stopPropagation();
-    onStart(tubeId, objectIndex, object);
+    onObjectStart(tube.id, topObjectIndex, topObject);
   };
 
-  const scale = hovered && draggable ? 1.12 : 1;
-  const color = COLORS[object.color];
-
-  // Glossy injection-moulded plastic: strong clearcoat highlight, just a
-  // touch of self-illumination so the colours stay vivid in the dark scene.
-  const material = (
-    <meshPhysicalMaterial
-      color={color}
-      emissive={color}
-      emissiveIntensity={0.14}
-      metalness={0.12}
-      roughness={0.3}
-      clearcoat={1}
-      clearcoatRoughness={0.12}
-      sheen={0.4}
-      sheenColor="#ffffff"
-    />
-  );
-
   return (
-    <Float
-      speed={draggable ? 1.2 : 0.6}
-      rotationIntensity={draggable ? 0.08 : 0.02}
-      floatIntensity={0.025}
+    <div
+      className="flex flex-col items-center"
+      style={{
+        width: "min(20vw, 92px)",
+        animation: shaking ? "tube-shake 420ms ease-in-out" : undefined,
+      }}
     >
-      <group
-        position={position}
-        scale={scale}
-        onPointerDown={handlePointerDown}
-        onPointerEnter={(event) => {
-          event.stopPropagation();
-          setHovered(true);
-          document.body.style.cursor = draggable ? "grab" : "default";
-        }}
-        onPointerLeave={() => {
-          setHovered(false);
-          document.body.style.cursor = "default";
+      <div
+        data-tube-id={tube.id}
+        onPointerDown={startFromTube}
+        onContextMenu={(event) => event.preventDefault()}
+        className="relative flex w-full flex-col items-center justify-end"
+        style={{
+          aspectRatio: "84 / 224",
+          filter: selected ? "drop-shadow(0 0 10px rgba(120,220,255,0.55))" : "none",
+          cursor: topObject ? (topObject.chainLayers > 0 || topObject.frozen ? "not-allowed" : "grab") : "default",
+          touchAction: "none",
         }}
       >
-        {object.type === "sphere" && (
-          <mesh castShadow>
-            <sphereGeometry args={[0.25, 32, 32]} />
-            {material}
-          </mesh>
-        )}
+        {tubeBurst && <TubeBurst type={tubeBurst} />}
 
-        {object.type === "cube" && (
-          <RoundedBox args={[0.4, 0.4, 0.38]} radius={0.08} smoothness={4} castShadow>
-            {material}
-          </RoundedBox>
-        )}
+        {/* Glass barrel */}
+        <div
+          className="absolute inset-x-0 bottom-0 top-[9%] overflow-hidden rounded-b-[38%] rounded-t-md"
+          style={{
+            background: "linear-gradient(100deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 16%, rgba(180,215,235,0.10) 46%, rgba(255,255,255,0.05) 62%, rgba(255,255,255,0.22) 100%)",
+            border: "1px solid rgba(255,255,255,0.38)",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), inset -6px 0 14px rgba(0,0,0,0.14), 0 6px 14px rgba(0,0,0,0.35)",
+            pointerEvents: "none",
+          }}
+        >
+          <div className="absolute inset-y-0 left-[14%] w-[13%] rounded-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.05))" }} />
+          <div className="absolute inset-y-0 left-[68%] w-[7%] rounded-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0))" }} />
 
-        {object.type === "triangle" && (
-          <mesh geometry={TRIANGLE_GEOMETRY} castShadow>
-            {material}
-          </mesh>
-        )}
+          {/* Four-slot layout: every object is sized to fit four pieces clearly. */}
+          <div className="absolute inset-x-[8%] bottom-[3%] flex h-[88%] flex-col-reverse items-center justify-end gap-[1%] px-[8%] pointer-events-none">
+            {tube.objects.map((object, index) => (
+              <div
+                key={object.id}
+                className="relative w-[72%] shrink-0"
+                style={{
+                  aspectRatio: "1 / 1",
+                  opacity: dragging?.tubeId === tube.id && dragging.objectIndex === index ? 0 : 1,
+                }}
+              >
+                <div className={`relative h-full w-full ${pieceEffects?.[object.id] ? `piece-fx-${pieceEffects[object.id]}` : ""}`}>
+                  <ObjectShape type={object.type} colors={COLORS[object.color]} responsive />
+                  {object.chainLayers > 0 && <ChainVisual layers={object.chainLayers} />}
+                  {object.frozen && <IceVisual />}
+                  {object.bombTurns != null && <BombVisual turns={object.bombTurns} />}
+                  {pieceEffects?.[object.id] === "chain-break" && <FxBurst symbol="🔗" />}
+                  {pieceEffects?.[object.id] === "ice-melt" && <FxBurst symbol="❄" />}
+                  {pieceEffects?.[object.id] === "bomb" && <FxBurst symbol="💥" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        {object.type === "star" && (
-          <mesh geometry={STAR_GEOMETRY} castShadow>
-            {material}
-          </mesh>
-        )}
-      </group>
-    </Float>
+        {/* Four subtle capacity slots make the 4-piece capacity visually obvious. */}
+        <div className="pointer-events-none absolute inset-x-[12%] bottom-[8%] top-[15%] flex flex-col-reverse justify-start gap-[1%] opacity-[0.10]">
+          {[0, 1, 2, 3].map((slot) => (
+            <div key={slot} className="w-[72%] self-center rounded-full border border-white/70" style={{ aspectRatio: "1 / 1" }} />
+          ))}
+        </div>
+
+        {/* Top collar */}
+        <div
+          className="pointer-events-none absolute inset-x-[-4%] top-0 rounded-[40%] shadow-[0_2px_4px_rgba(0,0,0,0.35)]"
+          style={{
+            height: "13%",
+            background: `linear-gradient(180deg, ${tubeColor.light} 0%, ${tubeColor.base} 45%, ${tubeColor.dark} 100%)`,
+            border: "1px solid rgba(0,0,0,0.15)",
+          }}
+        >
+          <div className="absolute inset-x-[10%] top-[14%] rounded-full" style={{ height: "30%", background: "rgba(255,255,255,0.55)", filter: "blur(1px)" }} />
+        </div>
+
+        {/* Bottom base */}
+        <div
+          className="pointer-events-none absolute inset-x-[-6%] bottom-[-4%] rounded-[45%] shadow-[0_5px_10px_rgba(0,0,0,0.4)]"
+          style={{
+            height: "12%",
+            background: `linear-gradient(180deg, ${tubeColor.light} 0%, ${tubeColor.base} 40%, ${tubeColor.dark} 100%)`,
+            border: "1px solid rgba(0,0,0,0.2)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   OBJECT SHAPES
+   Moulded-plastic look: a base fill, a darker lower shade for
+   volume, and a bright highlight — no glow, just lit plastic.
+========================================================= */
+
+function ChainVisual({ layers = 1 }) {
+  return (
+    <div className="pointer-events-none absolute inset-[5%] z-10">
+      {Array.from({ length: layers }).map((_, index) => (
+        <div key={index} className="chain-ring absolute inset-[8%] rounded-[42%] border-[3px] border-[#c9d4df] shadow-[0_0_5px_rgba(255,255,255,.55),inset_0_0_4px_rgba(0,0,0,.8)]" style={{ transform: `rotate(${index * 18 - 9}deg)`, opacity: 0.94 - index * 0.12 }} />
+      ))}
+      <div className="absolute inset-0 flex items-center justify-center text-[11px] drop-shadow-[0_2px_3px_rgba(0,0,0,.9)]">🔗</div>
+    </div>
+  );
+}
+
+function IceVisual() {
+  return (
+    <div className="pointer-events-none absolute inset-[2%] z-10 rounded-[40%] border-2 border-cyan-100/70 bg-cyan-100/10 shadow-[inset_0_0_10px_rgba(160,240,255,.35),0_0_8px_rgba(100,220,255,.28)]">
+      <div className="absolute inset-0 flex items-center justify-center text-[13px] opacity-90">❄️</div>
+    </div>
+  );
+}
+
+function BombVisual({ turns }) {
+  return (
+    <div className="pointer-events-none absolute inset-[3%] z-10">
+      <div className="bomb-pulse absolute right-[4%] top-[2%] flex h-[31%] w-[31%] items-center justify-center rounded-full border border-red-200/70 bg-red-950/90 text-[8px] font-black text-white shadow-[0_0_9px_rgba(255,50,50,.7)]">{turns}</div>
+      <div className="bomb-fuse absolute right-[20%] top-[-5%] h-[18%] w-[10%] rotate-[28deg] rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(255,200,60,.9)]" />
+      <div className="absolute bottom-[1%] left-[5%] rounded-full bg-black/55 px-1.5 py-0.5 text-[8px]">💣</div>
+    </div>
+  );
+}
+
+function FxBurst({ symbol }) {
+  return (
+    <div className="pointer-events-none absolute inset-[-22%] z-30 flex items-center justify-center">
+      <span className="fx-burst text-[18px]">{symbol}</span>
+      <i className="fx-spark fx-spark-a" /><i className="fx-spark fx-spark-b" /><i className="fx-spark fx-spark-c" /><i className="fx-spark fx-spark-d" />
+    </div>
+  );
+}
+
+function TubeBurst({ type }) {
+  return (
+    <div className={`pointer-events-none absolute inset-[-12%] z-20 flex items-center justify-center tube-burst-${type}`}>
+      <div className="burst-ring absolute h-[45%] w-[45%] rounded-full border-4 border-yellow-200/80" />
+      <div className="burst-ring burst-ring-2 absolute h-[30%] w-[30%] rounded-full border-2 border-white/80" />
+      <div className="absolute text-[28px] drop-shadow-[0_0_8px_rgba(255,190,50,.9)]">{type === "explosion" ? "💥" : "✨"}</div>
+      <i className="burst-star star-1">✦</i><i className="burst-star star-2">✦</i><i className="burst-star star-3">✦</i><i className="burst-star star-4">✦</i>
+    </div>
+  );
+}
+
+function SpecialBadge({ label }) {
+  return (
+    <div className="pointer-events-none absolute right-0 top-0 z-10 flex min-h-4 min-w-4 -translate-y-1/4 translate-x-1/4 items-center justify-center rounded-full border border-white/30 bg-[#061522]/90 px-1 text-[7px] font-black text-white shadow-[0_2px_7px_rgba(0,0,0,.55)]">
+      {label}
+    </div>
+  );
+}
+
+function ObjectShape({ type, colors, size, responsive }) {
+  const style = responsive
+    ? { width: "100%", aspectRatio: "1 / 1" }
+    : { width: size, height: size };
+
+  const gradId = `${type}-${colors.base.replace("#", "")}`;
+
+  if (type === "sphere") {
+    return (
+      <svg viewBox="0 0 100 100" style={style}>
+        <defs>
+          <radialGradient id={`sph-${gradId}`} cx="38%" cy="32%" r="75%">
+            <stop offset="0%" stopColor={colors.light} />
+            <stop offset="55%" stopColor={colors.base} />
+            <stop offset="100%" stopColor={colors.dark} />
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="44" fill={`url(#sph-${gradId})`} />
+        <ellipse cx="37" cy="30" rx="14" ry="9" fill="#ffffff" opacity="0.55" />
+      </svg>
+    );
+  }
+
+  if (type === "cube") {
+    return (
+      <svg viewBox="0 0 100 100" style={style}>
+        <defs>
+          <linearGradient id={`cube-${gradId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={colors.light} />
+            <stop offset="55%" stopColor={colors.base} />
+            <stop offset="100%" stopColor={colors.dark} />
+          </linearGradient>
+        </defs>
+        <rect x="10" y="10" width="80" height="80" rx="16" fill={`url(#cube-${gradId})`} />
+        <rect x="18" y="16" width="34" height="16" rx="8" fill="#ffffff" opacity="0.4" />
+      </svg>
+    );
+  }
+
+  if (type === "triangle") {
+    return (
+      <svg viewBox="0 0 100 100" style={style}>
+        <defs>
+          <linearGradient id={`tri-${gradId}`} x1="0%" y1="0%" x2="20%" y2="100%">
+            <stop offset="0%" stopColor={colors.light} />
+            <stop offset="50%" stopColor={colors.base} />
+            <stop offset="100%" stopColor={colors.dark} />
+          </linearGradient>
+        </defs>
+        <polygon points="50,8 92,90 8,90" rx="10" fill={`url(#tri-${gradId})`} strokeLinejoin="round" />
+        <polygon points="50,8 92,90 8,90" fill="none" stroke={colors.dark} strokeOpacity="0.25" strokeWidth="2" strokeLinejoin="round" />
+        <polygon points="50,20 68,54 32,54" fill="#ffffff" opacity="0.32" />
+      </svg>
+    );
+  }
+
+  // star
+  const outerR = 46;
+  const innerR = 20;
+  const points = Array.from({ length: 10 }, (_, i) => {
+    const angle = (i * Math.PI) / 5 - Math.PI / 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    return `${50 + Math.cos(angle) * r},${50 + Math.sin(angle) * r}`;
+  }).join(" ");
+
+  return (
+    <svg viewBox="0 0 100 100" style={style}>
+      <defs>
+        <linearGradient id={`star-${gradId}`} x1="0%" y1="0%" x2="30%" y2="100%">
+          <stop offset="0%" stopColor={colors.light} />
+          <stop offset="50%" stopColor={colors.base} />
+          <stop offset="100%" stopColor={colors.dark} />
+        </linearGradient>
+      </defs>
+      <polygon points={points} fill={`url(#star-${gradId})`} strokeLinejoin="round" />
+      <polygon points={points} fill="none" stroke={colors.dark} strokeOpacity="0.25" strokeWidth="1.5" strokeLinejoin="round" />
+      <ellipse cx="41" cy="34" rx="10" ry="6" fill="#ffffff" opacity="0.4" />
+    </svg>
   );
 }

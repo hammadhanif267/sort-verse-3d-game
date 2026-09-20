@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
-import { CoinIcon, GemIcon } from "@/components/icons";
+import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 
@@ -99,11 +99,11 @@ export default function LevelsPage() {
 
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
-                  <CoinIcon className="h-3.5 w-3.5 shrink-0" />
+                  <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
                 <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
-                  <GemIcon className="h-3.5 w-3.5 shrink-0" />
+                  <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
               </div>
@@ -212,11 +212,11 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
           {completed && reward && (
             <div className="flex items-center gap-1 text-[7px] font-black leading-none">
               <span className="inline-flex items-center gap-[1px] text-yellow-200">
-                <CoinIcon className="h-2 w-2" />
+                <HomeCoinIcon className="h-2 w-2" />
                 {reward.coins}
               </span>
               <span className="inline-flex items-center gap-[1px] text-violet-200">
-                <GemIcon className="h-2 w-2" />
+                <HomeGemIcon className="h-2 w-2" />
                 {reward.diamonds}
               </span>
             </div>

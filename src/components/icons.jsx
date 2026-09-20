@@ -127,6 +127,36 @@ export function CityGoldIcon({ className }) {
   );
 }
 
+
+/* Compact currency icons matching the Home header artwork exactly. */
+export function HomeCoinIcon({ className }) {
+  return (
+    <span
+      className={`relative flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fff7bd] via-[#ffd43b] to-[#d58a00] shadow-[0_0_10px_rgba(255,190,0,0.42)] ring-1 ring-yellow-200/60 ${className || "h-5 w-5"}`}
+      aria-hidden="true"
+    >
+      <span className="absolute inset-[2px] rounded-full border-[1.5px] border-[#a76500]/70" />
+      <span className="absolute inset-[4px] rounded-full border border-[#fff0a0]/70" />
+      <span className="absolute left-[4px] top-[3px] h-[4px] w-[2px] rotate-[35deg] rounded-full bg-white/75" />
+      <span className="relative z-10 -translate-y-[0.5px] text-[9px] font-black leading-none text-[#704000] drop-shadow-[0_1px_0_rgba(255,255,255,0.35)]">$</span>
+    </span>
+  );
+}
+
+export function HomeGemIcon({ className }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-cyan-200 via-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(0,210,255,0.3)] ${className || "h-5 w-5"}`}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" className="h-[70%] w-[70%] text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2.5 5 6.5l7 15 7-15-7-4Z" fill="currentColor" opacity="0.95" />
+        <path d="M5 6.5h14M12 2.5v19" stroke="#dffcff" strokeWidth="1.2" />
+      </svg>
+    </span>
+  );
+}
+
 /* Glossy gold coin icon (matches the demo's currency icon) */
 export function CoinIcon({ className }) {
   return (

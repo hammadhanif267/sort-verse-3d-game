@@ -9,7 +9,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_STATS = { level: 0, coins: 0, diamonds: 0 };
-const APP_RESET_KEY = "sortverse-clean-start-v4";
+const APP_RESET_KEY = "sortverse-professional-mechanics-v10";
 
 function readNumber(key, fallback) {
   if (typeof window === "undefined") return fallback;
@@ -35,6 +35,7 @@ export function usePlayerStats() {
     if (!window.localStorage.getItem(APP_RESET_KEY)) {
       window.localStorage.removeItem("sortverse-difficulty-progress");
       window.localStorage.removeItem("sortverse-level-stars");
+      window.localStorage.removeItem("sortverse-level-rewards");
       window.localStorage.setItem(STORAGE_KEYS.level, "0");
       window.localStorage.setItem(STORAGE_KEYS.coins, "0");
       window.localStorage.setItem(STORAGE_KEYS.diamonds, "0");

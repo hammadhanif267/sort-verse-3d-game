@@ -29,6 +29,14 @@ function GameplayContent() {
   const [timeLeft, setTimeLeft] = useState(() => difficultyParams(level, difficulty).timeSeconds);
   const [paused, setPaused] = useState(false);
 
+  const togglePause = () => {
+    setPaused((value) => {
+      const next = !value;
+      if (value && !next) playIntroChime();
+      return next;
+    });
+  };
+
   useEffect(() => {
     setTimeLeft(difficultyParams(level, difficulty).timeSeconds);
     setPaused(false);
@@ -79,7 +87,7 @@ function GameplayContent() {
               {/* Pause / Resume */}
               <button
                 type="button"
-                onClick={() => setPaused((value) => !value)}
+                onClick={togglePause}
                 aria-label={paused ? "Resume" : "Pause"}
                 className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/30 bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
               >
@@ -116,7 +124,7 @@ function GameplayContent() {
                 difficulty={difficulty}
                 onTimeChange={setTimeLeft}
                 paused={paused}
-                onTogglePause={() => setPaused((value) => !value)}
+                onTogglePause={togglePause}
               />
             </section>
           </div>

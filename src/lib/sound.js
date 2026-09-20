@@ -51,9 +51,25 @@ function getContext() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
     audioCtx = new Ctx();
+
+    // Master chain: gain -> limiter -> output. The limiter lets the music sit
+    // much louder without the peaks distorting on phone speakers.
     masterGain = audioCtx.createGain();
     masterGain.gain.value = readMuted() ? 0 : 1;
-    masterGain.connect(audioCtx.destination);
+
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 4;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.18;
+
+    const output = audioCtx.createGain();
+    output.gain.value = 1.35;
+
+    masterGain.connect(limiter);
+    limiter.connect(output);
+    output.connect(audioCtx.destination);
   }
   return audioCtx;
 }
@@ -194,7 +210,7 @@ function envelope(ctx, dest, { time, attack, duration, gain }) {
 }
 
 /** Warm, slowly opening chord pad — the backbone of both loops. */
-function playPad(ctx, dest, { notes, time, duration, gain = 0.05 }) {
+function playPad(ctx, dest, { notes, time, duration, gain = 0.12 }) {
   const amp = envelope(ctx, dest, { time, attack: duration * 0.3, duration, gain });
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
@@ -218,7 +234,7 @@ function playPad(ctx, dest, { notes, time, duration, gain = 0.05 }) {
 }
 
 /** Short melodic pluck / bell note. */
-function playPluck(ctx, dest, { note, time, duration = 0.5, gain = 0.07, type = "triangle" }) {
+function playPluck(ctx, dest, { note, time, duration = 0.5, gain = 0.16, type = "triangle" }) {
   const amp = envelope(ctx, dest, { time, attack: 0.012, duration, gain });
   const osc = ctx.createOscillator();
   osc.type = type;
@@ -229,7 +245,7 @@ function playPluck(ctx, dest, { note, time, duration = 0.5, gain = 0.07, type = 
 }
 
 /** Rounded bass note with a soft sub. */
-function playBass(ctx, dest, { note, time, duration = 0.4, gain = 0.1 }) {
+function playBass(ctx, dest, { note, time, duration = 0.4, gain = 0.24 }) {
   const amp = envelope(ctx, dest, { time, attack: 0.02, duration, gain });
   const osc = ctx.createOscillator();
   osc.type = "sine";
@@ -252,7 +268,7 @@ function playBass(ctx, dest, { note, time, duration = 0.4, gain = 0.1 }) {
 }
 
 /** Tiny filtered noise tick used as a hi-hat in the gameplay loop. */
-function playTick(ctx, dest, { time, gain = 0.03, duration = 0.045 }) {
+function playTick(ctx, dest, { time, gain = 0.08, duration = 0.045 }) {
   const source = ctx.createBufferSource();
   source.buffer = getNoise(ctx);
   const highpass = ctx.createBiquadFilter();
@@ -268,6 +284,60 @@ function playTick(ctx, dest, { time, gain = 0.03, duration = 0.045 }) {
   source.stop(time + duration + 0.02);
 }
 
+/** Deep kick drum — the pulse under the gameplay loop. */
+function playKick(ctx, dest, { time, gain = 0.55 }) {
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(gain, time);
+  amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(44, time + 0.12);
+  osc.connect(amp);
+  amp.connect(dest);
+  osc.start(time);
+  osc.stop(time + 0.34);
+}
+
+/** Noise-based snare/clap for the backbeat. */
+function playSnare(ctx, dest, { time, gain = 0.22 }) {
+  const source = ctx.createBufferSource();
+  source.buffer = getNoise(ctx);
+  const band = ctx.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 1900;
+  band.Q.value = 0.8;
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(gain, time);
+  amp.gain.exponentialRampToValueAtTime(0.0001, time + 0.17);
+  source.connect(band);
+  band.connect(amp);
+  amp.connect(dest);
+  source.start(time);
+  source.stop(time + 0.2);
+}
+
+/** Bright sawtooth lead — carries the melody in both themes. */
+function playLead(ctx, dest, { note, time, duration = 0.5, gain = 0.2 }) {
+  const amp = envelope(ctx, dest, { time, attack: 0.03, duration, gain });
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(2600, time);
+  filter.frequency.exponentialRampToValueAtTime(1200, time + duration);
+  filter.Q.value = 1.1;
+  filter.connect(amp);
+
+  [-9, 9].forEach((detune) => {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = midi(note);
+    osc.detune.value = detune;
+    osc.connect(filter);
+    osc.start(time);
+    osc.stop(time + duration + 0.08);
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Intro chime (plays once, at the start of gameplay)                  */
 /* ------------------------------------------------------------------ */
@@ -278,11 +348,11 @@ export function playIntroChime() {
     if (!ctx) return;
 
     const bus = ctx.createGain();
-    bus.gain.value = 1;
+    bus.gain.value = 1.45;
     bus.connect(masterGain);
 
     const send = ctx.createGain();
-    send.gain.value = 0.3;
+    send.gain.value = 0.35;
     const reverb = ctx.createConvolver();
     reverb.buffer = getImpulse(ctx);
     bus.connect(send);
@@ -290,29 +360,45 @@ export function playIntroChime() {
     reverb.connect(masterGain);
 
     const now = ctx.currentTime + 0.03;
-    const notes = [72, 76, 79, 84]; // C5 - E5 - G5 - C6
-    const step = 0.11;
 
-    notes.forEach((note, index) => {
-      const isLast = index === notes.length - 1;
+    // Rising sweep into a big major stab — a proper "level start" fanfare.
+    const sweep = ctx.createOscillator();
+    const sweepAmp = ctx.createGain();
+    sweep.type = "sawtooth";
+    sweep.frequency.setValueAtTime(midi(45), now);
+    sweep.frequency.exponentialRampToValueAtTime(midi(76), now + 0.36);
+    const sweepFilter = ctx.createBiquadFilter();
+    sweepFilter.type = "lowpass";
+    sweepFilter.frequency.setValueAtTime(600, now);
+    sweepFilter.frequency.exponentialRampToValueAtTime(5200, now + 0.36);
+    sweepAmp.gain.setValueAtTime(0.0001, now);
+    sweepAmp.gain.exponentialRampToValueAtTime(0.32, now + 0.3);
+    sweepAmp.gain.exponentialRampToValueAtTime(0.0001, now + 0.46);
+    sweep.connect(sweepFilter);
+    sweepFilter.connect(sweepAmp);
+    sweepAmp.connect(bus);
+    sweep.start(now);
+    sweep.stop(now + 0.5);
+
+    // The hit
+    const hit = now + 0.36;
+    playKick(ctx, bus, { time: hit, gain: 0.85 });
+    playPad(ctx, bus, { notes: [50, 57, 62, 66, 69], time: hit, duration: 1.5, gain: 0.16 });
+    [62, 66, 69, 74].forEach((note, index) => {
+      playLead(ctx, bus, { note, time: hit + index * 0.055, duration: 1.1, gain: 0.26 });
+    });
+
+    // Bell tail
+    [81, 86].forEach((note, index) => {
       playPluck(ctx, bus, {
         note,
-        time: now + index * step,
-        duration: isLast ? 0.9 : 0.35,
-        gain: isLast ? 0.2 : 0.15,
+        time: hit + 0.34 + index * 0.13,
+        duration: 1.5,
+        gain: 0.3,
         type: "sine",
       });
     });
 
-    // Warm low pad under the final note for a cinematic finish.
-    playPad(ctx, bus, {
-      notes: [48, 55, 64],
-      time: now + (notes.length - 1) * step,
-      duration: 1.3,
-      gain: 0.05,
-    });
-
-    // Release the temporary bus once the tail has died away.
     window.setTimeout(() => {
       try {
         bus.disconnect();
@@ -321,7 +407,204 @@ export function playIntroChime() {
       } catch {
         /* already gone */
       }
-    }, 4000);
+    }, 5000);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Loud gameplay feedback sounds                                      */
+/* ------------------------------------------------------------------ */
+
+function playToneBurst(ctx, dest, { notes, start, duration = 0.16, gain = 0.32, type = "triangle" }) {
+  notes.forEach((note, index) => {
+    const time = start + index * Math.min(0.075, duration * 0.45);
+    const amp = envelope(ctx, dest, {
+      time,
+      attack: 0.008,
+      duration: duration + index * 0.04,
+      gain,
+    });
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.value = midi(note);
+    osc.connect(amp);
+    osc.start(time);
+    osc.stop(time + duration + 0.08);
+  });
+}
+
+export function playDragDropSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [76, 84], start: now, duration: 0.13, gain: 0.22, type: "sine" });
+    playTick(ctx, bus, { time: now, gain: 0.08, duration: 0.06 });
+    window.setTimeout(() => bus.disconnect(), 700);
+  });
+}
+
+export function playWrongMoveSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [63, 58], start: now, duration: 0.2, gain: 0.34, type: "square" });
+    window.setTimeout(() => bus.disconnect(), 800);
+  });
+}
+
+export function playChainBreakSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [88, 96], start: now, duration: 0.11, gain: 0.2, type: "triangle" });
+    playTick(ctx, bus, { time: now + 0.015, gain: 0.18, duration: 0.08 });
+    window.setTimeout(() => bus.disconnect(), 500);
+  });
+}
+
+export function playPopBurstSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [79, 86, 93], start: now, duration: 0.18, gain: 0.25, type: "sine" });
+    playTick(ctx, bus, { time: now, gain: 0.22, duration: 0.12 });
+    window.setTimeout(() => bus.disconnect(), 650);
+  });
+}
+
+export function playBombExplosionSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playKick(ctx, bus, { time: now, gain: 0.75 });
+    playTick(ctx, bus, { time: now, gain: 0.28, duration: 0.18 });
+    playToneBurst(ctx, bus, { notes: [48, 40], start: now + 0.02, duration: 0.32, gain: 0.3, type: "sawtooth" });
+    window.setTimeout(() => bus.disconnect(), 900);
+  });
+}
+
+export function playTubeCompleteSound() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [72, 79, 84, 88], start: now, duration: 0.26, gain: 0.38, type: "sine" });
+    window.setTimeout(() => bus.disconnect(), 1200);
+  });
+}
+
+// Child-like positive callout used for gameplay events. Browsers do not
+// expose a guaranteed child voice, so we prefer youthful/female English
+// voices and use a higher pitch/rate to keep the delivery playful.
+export function playKidVoice(text = "Yay!") {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    try {
+      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = 1.22;
+        utterance.pitch = 1.85;
+        utterance.volume = 1;
+        const voices = window.speechSynthesis.getVoices?.() || [];
+        const preferred = voices.find((voice) =>
+          /en[-_]US/i.test(voice.lang) && /child|kid|junior|samantha|zira|google|female/i.test(voice.name)
+        ) || voices.find((voice) => /en[-_]US/i.test(voice.lang));
+        if (preferred) utterance.voice = preferred;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch {
+      // The Web Audio effect still plays if speech synthesis is unavailable.
+    }
+    const bus = ctx.createGain();
+    bus.gain.value = 1.15;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [84, 91], start: now, duration: 0.16, gain: 0.24, type: "triangle" });
+    window.setTimeout(() => bus.disconnect(), 700);
+  });
+}
+
+// Candy-crush-style positive callout. SpeechSynthesis is used when the
+// browser has a suitable English voice; the bright chime remains the fallback.
+export function playGoodVoice() {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+
+    try {
+      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance("Good!");
+        utterance.lang = "en-US";
+        utterance.rate = 1.18;
+        utterance.pitch = 1.82;
+        utterance.volume = 1;
+        const voices = window.speechSynthesis.getVoices?.() || [];
+        const preferred = voices.find((voice) => /en[-_]US/i.test(voice.lang) && /zira|samantha|google|female/i.test(voice.name));
+        if (preferred) utterance.voice = preferred;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch {
+      // Fallback below is always safe.
+    }
+
+    const bus = ctx.createGain();
+    bus.gain.value = 1.15;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [79, 84, 91], start: now, duration: 0.22, gain: 0.32, type: "triangle" });
+    window.setTimeout(() => bus.disconnect(), 900);
+  });
+}
+
+
+export function playLevelCompleteVoice(text = "Level complete! Great job!") {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    try {
+      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = 1.08;
+        utterance.pitch = 1.9;
+        utterance.volume = 1;
+        const voices = window.speechSynthesis.getVoices?.() || [];
+        const preferred = voices.find((voice) => /en[-_]US/i.test(voice.lang) && /zira|samantha|google|female/i.test(voice.name)) || voices.find((voice) => /en[-_]US/i.test(voice.lang));
+        if (preferred) utterance.voice = preferred;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch {}
+    const bus = ctx.createGain();
+    bus.gain.value = 1.5;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.005;
+    playToneBurst(ctx, bus, { notes: [72, 79, 84, 88, 96], start: now, duration: 0.34, gain: 0.4, type: "triangle" });
+    window.setTimeout(() => bus.disconnect(), 1400);
   });
 }
 
@@ -330,88 +613,132 @@ export function playIntroChime() {
 /* ------------------------------------------------------------------ */
 
 /**
- * Calm, airy menu theme (C - Am - F - G, 78 BPM, ~12s seamless loop).
- * Deliberately gentle so it can run for a long time without tiring the player.
+ * Menu theme — bright and confident, in D major (D - Bm - G - A) at 92 BPM.
+ * A sustained pad, a walking bass and a clear lead melody, so the home screen
+ * has something to actually listen to rather than a background hum.
  */
 const MENU_CHORDS = [
-  { bass: 48, pad: [48, 55, 64, 71], lead: [72, 76, 79] },
-  { bass: 45, pad: [45, 52, 60, 67], lead: [69, 72, 76] },
-  { bass: 41, pad: [41, 48, 57, 64], lead: [65, 69, 72] },
-  { bass: 43, pad: [43, 50, 59, 62], lead: [67, 71, 74] },
+  { bass: 50, pad: [57, 62, 66, 69], lead: [81, 78, 74, 78] },
+  { bass: 47, pad: [54, 59, 62, 66], lead: [78, 74, 71, 74] },
+  { bass: 43, pad: [55, 59, 62, 67], lead: [79, 76, 74, 71] },
+  { bass: 45, pad: [57, 61, 64, 69], lead: [76, 73, 69, 73] },
 ];
 
 const MENU_TRACK = {
-  bpm: 78,
+  bpm: 92,
   stepsPerBeat: 2,
   totalSteps: 32, // 4 bars of 8 eighth-notes
-  volume: 0.5,
-  reverb: 0.34,
-  fadeIn: 1.6,
+  volume: 1.0,
+  reverb: 0.3,
+  fadeIn: 1.1,
   playStep(ctx, dest, step, time) {
     const chord = MENU_CHORDS[Math.floor(step / 8) % MENU_CHORDS.length];
     const inBar = step % 8;
 
     if (inBar === 0) {
-      playPad(ctx, dest, { notes: chord.pad, time, duration: 3.2, gain: 0.05 });
-      playBass(ctx, dest, { note: chord.bass, time, duration: 2.1, gain: 0.085 });
+      playPad(ctx, dest, { notes: chord.pad, time, duration: 2.7, gain: 0.1 });
     }
 
-    if (inBar === 2 || inBar === 5 || inBar === 7) {
-      const index = inBar === 2 ? 0 : inBar === 5 ? 1 : 2;
-      playPluck(ctx, dest, {
+    // Walking bass on the beat
+    if (inBar % 2 === 0) {
+      playBass(ctx, dest, {
+        note: inBar === 4 ? chord.bass + 7 : chord.bass,
+        time,
+        duration: 0.5,
+        gain: 0.26,
+      });
+    }
+
+    // Lead melody
+    if (inBar === 0 || inBar === 3 || inBar === 5 || inBar === 6) {
+      const index = inBar === 0 ? 0 : inBar === 3 ? 1 : inBar === 5 ? 2 : 3;
+      playLead(ctx, dest, {
         note: chord.lead[index],
         time,
-        duration: 1.2,
-        gain: 0.05,
-        type: "sine",
+        duration: inBar === 6 ? 0.95 : 0.55,
+        gain: 0.19,
       });
+    }
+
+    // Light shaker on the offbeats
+    if (inBar % 2 === 1) {
+      playTick(ctx, dest, { time, gain: inBar === 3 ? 0.07 : 0.045 });
     }
   },
 };
 
 /**
- * Driving gameplay theme (Am - F - C - G, 112 BPM, ~8.5s seamless loop).
- * Same harmonic family as the menu so the switch feels intentional, but with
- * a pulse and a 16th-note arpeggio that keep the sorting action moving.
+ * Gameplay theme — driving E minor (Em - C - G - D) at 124 BPM with a kick on
+ * every beat, a backbeat snare, a bouncing bass and a sixteenth-note arpeggio.
+ * Clearly a different piece of music from the menu theme, and noticeably
+ * more energetic.
  */
 const GAME_CHORDS = [
-  { bass: 45, pad: [57, 60, 64], arp: [69, 72, 76, 81, 76, 72, 76, 72] },
-  { bass: 41, pad: [53, 57, 60], arp: [65, 69, 72, 77, 72, 69, 72, 69] },
-  { bass: 48, pad: [55, 60, 64], arp: [67, 72, 76, 79, 76, 72, 76, 72] },
-  { bass: 43, pad: [55, 59, 62], arp: [67, 71, 74, 79, 74, 71, 74, 71] },
+  { bass: 40, pad: [55, 59, 64], arp: [64, 67, 71, 76, 71, 67, 71, 67] },
+  { bass: 36, pad: [52, 55, 60], arp: [60, 64, 67, 72, 67, 64, 67, 64] },
+  { bass: 43, pad: [55, 59, 62], arp: [62, 67, 71, 74, 71, 67, 71, 67] },
+  { bass: 38, pad: [54, 57, 62], arp: [62, 66, 69, 74, 69, 66, 69, 66] },
 ];
 
 const GAME_TRACK = {
-  bpm: 112,
+  bpm: 124,
   stepsPerBeat: 4,
   totalSteps: 64, // 4 bars of 16 sixteenth-notes
-  volume: 0.45,
-  reverb: 0.2,
-  fadeIn: 1.2,
+  volume: 0.92,
+  reverb: 0.16,
+  fadeIn: 0.9,
   playStep(ctx, dest, step, time) {
     const chord = GAME_CHORDS[Math.floor(step / 16) % GAME_CHORDS.length];
     const inBar = step % 16;
 
     if (inBar === 0) {
-      playPad(ctx, dest, { notes: chord.pad, time, duration: 2.2, gain: 0.03 });
+      playPad(ctx, dest, { notes: chord.pad, time, duration: 1.9, gain: 0.07 });
     }
 
-    if (inBar === 0 || inBar === 6 || inBar === 8 || inBar === 14) {
-      playBass(ctx, dest, { note: chord.bass, time, duration: 0.32, gain: 0.1 });
+    // Four-on-the-floor kick with a pickup before the bar turns over
+    if (inBar % 4 === 0 || inBar === 14) {
+      playKick(ctx, dest, { time, gain: inBar === 14 ? 0.35 : 0.6 });
     }
 
+    // Backbeat
+    if (inBar === 4 || inBar === 12) {
+      playSnare(ctx, dest, { time, gain: 0.24 });
+    }
+
+    // Bouncing bass
+    if (inBar % 4 === 0 || inBar === 6 || inBar === 11) {
+      playBass(ctx, dest, {
+        note: inBar === 11 ? chord.bass + 12 : chord.bass,
+        time,
+        duration: 0.26,
+        gain: 0.3,
+      });
+    }
+
+    // Sixteenth arpeggio
     if (inBar % 2 === 0) {
       playPluck(ctx, dest, {
         note: chord.arp[(inBar / 2) % chord.arp.length],
         time,
-        duration: 0.3,
-        gain: 0.055,
-        type: "triangle",
+        duration: 0.26,
+        gain: 0.16,
+        type: "square",
       });
     }
 
+    // Lead accents at the top of each bar
+    if (inBar === 0 || inBar === 8) {
+      playLead(ctx, dest, {
+        note: chord.arp[0] + 12,
+        time,
+        duration: 0.5,
+        gain: 0.14,
+      });
+    }
+
+    // Hats
     if (inBar % 4 === 2) {
-      playTick(ctx, dest, { time, gain: 0.025 });
+      playTick(ctx, dest, { time, gain: 0.075 });
     }
   },
 };
