@@ -122,3 +122,42 @@ a:focus-visible {
   60%, 100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .level-complete-banner { animation: level-complete-banner 650ms cubic-bezier(.2,.85,.2,1) both; }
+
+/* ---------- Level-complete celebration: petals + reward collect ---------- */
+
+@keyframes petal-rise {
+  0% { transform: translate(0, 0) rotate(0deg) scale(0.4); opacity: 0; }
+  14% { opacity: 1; }
+  100% {
+    transform: translate(var(--petal-drift), var(--petal-rise)) rotate(var(--petal-rotate)) scale(1);
+    opacity: 0;
+  }
+}
+.celebration-petal {
+  border-radius: 62% 38% 55% 45% / 58% 42% 58% 42%;
+  animation-name: petal-rise;
+  animation-timing-function: cubic-bezier(.15, .7, .25, 1);
+  animation-fill-mode: both;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+@keyframes reward-float {
+  0% { transform: translate(-50%, 6px) scale(0.85); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(-50%, -46px) scale(1.05); opacity: 0; }
+}
+.reward-float {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  white-space: nowrap;
+  font-size: 10px;
+  animation: reward-float 900ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes reward-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+.reward-pop { display: inline-block; animation: reward-pop 260ms ease-out; }

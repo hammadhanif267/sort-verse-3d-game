@@ -175,6 +175,22 @@ function midi(note) {
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
+// A coarse-pointer device (phones/tablets) generally has a much weaker audio
+// thread than a laptop. The gameplay loop below is intentionally dense (kick
+// + snare + bass + pad + 16th-note arpeggio + hats, all continuously
+// scheduled), which desktops handle fine but can overload a phone's audio
+// thread — the audible result is exactly the crackle/stutter this is meant
+// to prevent. On such devices we skip the two busiest, least essential
+// layers (the arpeggio and the hats) and keep the core groove.
+function isLowPowerAudioDevice() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+  } catch {
+    return false;
+  }
+}
+
 function getImpulse(ctx) {
   if (impulseBuffer) return impulseBuffer;
   const seconds = 2.6;
@@ -440,7 +456,7 @@ export function playDragDropSound() {
     const bus = ctx.createGain();
     bus.gain.value = 1;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [76, 84], start: now, duration: 0.13, gain: 0.22, type: "sine" });
     playTick(ctx, bus, { time: now, gain: 0.08, duration: 0.06 });
     window.setTimeout(() => bus.disconnect(), 700);
@@ -454,7 +470,7 @@ export function playWrongMoveSound() {
     const bus = ctx.createGain();
     bus.gain.value = 1;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [63, 58], start: now, duration: 0.2, gain: 0.34, type: "square" });
     window.setTimeout(() => bus.disconnect(), 800);
   });
@@ -466,7 +482,7 @@ export function playChainBreakSound() {
     if (!ctx) return;
     const bus = ctx.createGain();
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [88, 96], start: now, duration: 0.11, gain: 0.2, type: "triangle" });
     playTick(ctx, bus, { time: now + 0.015, gain: 0.18, duration: 0.08 });
     window.setTimeout(() => bus.disconnect(), 500);
@@ -479,7 +495,7 @@ export function playPopBurstSound() {
     if (!ctx) return;
     const bus = ctx.createGain();
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [79, 86, 93], start: now, duration: 0.18, gain: 0.25, type: "sine" });
     playTick(ctx, bus, { time: now, gain: 0.22, duration: 0.12 });
     window.setTimeout(() => bus.disconnect(), 650);
@@ -492,7 +508,7 @@ export function playBombExplosionSound() {
     if (!ctx) return;
     const bus = ctx.createGain();
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playKick(ctx, bus, { time: now, gain: 0.75 });
     playTick(ctx, bus, { time: now, gain: 0.28, duration: 0.18 });
     playToneBurst(ctx, bus, { notes: [48, 40], start: now + 0.02, duration: 0.32, gain: 0.3, type: "sawtooth" });
@@ -507,10 +523,77 @@ export function playTubeCompleteSound() {
     const bus = ctx.createGain();
     bus.gain.value = 1;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [72, 79, 84, 88], start: now, duration: 0.26, gain: 0.38, type: "sine" });
     window.setTimeout(() => bus.disconnect(), 1200);
   });
+}
+
+/**
+ * The little "cha-ching" that plays as a reward (coins or diamonds) flies up
+ * into its total on the level-complete screen. `pitch` shifts the whole
+ * run up for the second/third call so coins and diamonds sound distinct
+ * when they land close together.
+ */
+export function playCoinCollectSound({ pitch = 0 } = {}) {
+  whenReady(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(masterGain);
+    const now = ctx.currentTime + 0.02;
+    playToneBurst(ctx, bus, {
+      notes: [74 + pitch, 78 + pitch, 81 + pitch, 86 + pitch, 90 + pitch],
+      start: now,
+      duration: 0.15,
+      gain: 0.36,
+      type: "sine",
+    });
+    window.setTimeout(() => bus.disconnect(), 900);
+  });
+}
+
+/**
+ * Shared speech-synthesis gate.
+ *
+ * On mobile browsers, calling `speechSynthesis.cancel()` and immediately
+ * starting a new utterance — which every voice callout used to do,
+ * independently, on top of whatever the previous callout had just
+ * queued — is exactly what produces choppy/garbled "phas-phas" playback:
+ * mobile TTS engines are much slower to tear down and restart than desktop,
+ * so back-to-back calls (e.g. a drag sound's chime plus a "Yay!" callout
+ * plus a tube-complete callout, all within a few hundred ms) pile up and
+ * fight over the same engine. This gate makes speech calls cooperative:
+ * a new line is skipped (not queued, not force-cancelled) while a very
+ * recent one is still likely speaking, so at most one line plays at a time
+ * and nothing gets cut into stuttering fragments.
+ */
+let lastSpeechAt = 0;
+const SPEECH_MIN_GAP_MS = 650;
+
+function speakLine(text, { rate = 1.15, pitch = 1.85, namePattern = /child|kid|junior|samantha|zira|google|female/i } = {}) {
+  if (typeof window === "undefined" || !window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") return;
+  const now = Date.now();
+  if (now - lastSpeechAt < SPEECH_MIN_GAP_MS) return; // a line is still likely playing — skip rather than cut it off
+  lastSpeechAt = now;
+  try {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = 1;
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const preferred =
+      voices.find((voice) => /en[-_]US/i.test(voice.lang) && namePattern.test(voice.name)) ||
+      voices.find((voice) => /en[-_]US/i.test(voice.lang));
+    if (preferred) utterance.voice = preferred;
+    // No cancel() here — letting the previous line finish naturally (or be
+    // skipped by the gate above) is what avoids the stutter.
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // The Web Audio chime below still plays if speech synthesis is unavailable.
+  }
 }
 
 // Child-like positive callout used for gameplay events. Browsers do not
@@ -520,28 +603,11 @@ export function playKidVoice(text = "Yay!") {
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
-    try {
-      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-US";
-        utterance.rate = 1.22;
-        utterance.pitch = 1.85;
-        utterance.volume = 1;
-        const voices = window.speechSynthesis.getVoices?.() || [];
-        const preferred = voices.find((voice) =>
-          /en[-_]US/i.test(voice.lang) && /child|kid|junior|samantha|zira|google|female/i.test(voice.name)
-        ) || voices.find((voice) => /en[-_]US/i.test(voice.lang));
-        if (preferred) utterance.voice = preferred;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch {
-      // The Web Audio effect still plays if speech synthesis is unavailable.
-    }
+    speakLine(text, { rate: 1.22, pitch: 1.85 });
     const bus = ctx.createGain();
     bus.gain.value = 1.15;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [84, 91], start: now, duration: 0.16, gain: 0.24, type: "triangle" });
     window.setTimeout(() => bus.disconnect(), 700);
   });
@@ -553,28 +619,11 @@ export function playGoodVoice() {
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
-
-    try {
-      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance("Good!");
-        utterance.lang = "en-US";
-        utterance.rate = 1.18;
-        utterance.pitch = 1.82;
-        utterance.volume = 1;
-        const voices = window.speechSynthesis.getVoices?.() || [];
-        const preferred = voices.find((voice) => /en[-_]US/i.test(voice.lang) && /zira|samantha|google|female/i.test(voice.name));
-        if (preferred) utterance.voice = preferred;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch {
-      // Fallback below is always safe.
-    }
-
+    speakLine("Good!", { rate: 1.18, pitch: 1.82, namePattern: /zira|samantha|google|female/i });
     const bus = ctx.createGain();
     bus.gain.value = 1.15;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [79, 84, 91], start: now, duration: 0.22, gain: 0.32, type: "triangle" });
     window.setTimeout(() => bus.disconnect(), 900);
   });
@@ -585,24 +634,11 @@ export function playLevelCompleteVoice(text = "Level complete! Great job!") {
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
-    try {
-      if (typeof window !== "undefined" && window.speechSynthesis && typeof SpeechSynthesisUtterance !== "undefined") {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-US";
-        utterance.rate = 1.08;
-        utterance.pitch = 1.9;
-        utterance.volume = 1;
-        const voices = window.speechSynthesis.getVoices?.() || [];
-        const preferred = voices.find((voice) => /en[-_]US/i.test(voice.lang) && /zira|samantha|google|female/i.test(voice.name)) || voices.find((voice) => /en[-_]US/i.test(voice.lang));
-        if (preferred) utterance.voice = preferred;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch {}
+    speakLine(text, { rate: 1.08, pitch: 1.9, namePattern: /zira|samantha|google|female/i });
     const bus = ctx.createGain();
     bus.gain.value = 1.5;
     bus.connect(masterGain);
-    const now = ctx.currentTime + 0.005;
+    const now = ctx.currentTime + 0.032;
     playToneBurst(ctx, bus, { notes: [72, 79, 84, 88, 96], start: now, duration: 0.34, gain: 0.4, type: "triangle" });
     window.setTimeout(() => bus.disconnect(), 1400);
   });
@@ -715,8 +751,8 @@ const GAME_TRACK = {
       });
     }
 
-    // Sixteenth arpeggio
-    if (inBar % 2 === 0) {
+    // Sixteenth arpeggio — skipped on phones (see isLowPowerAudioDevice).
+    if (inBar % 2 === 0 && !isLowPowerAudioDevice()) {
       playPluck(ctx, dest, {
         note: chord.arp[(inBar / 2) % chord.arp.length],
         time,
@@ -736,8 +772,8 @@ const GAME_TRACK = {
       });
     }
 
-    // Hats
-    if (inBar % 4 === 2) {
+    // Hats — skipped on phones (see isLowPowerAudioDevice).
+    if (inBar % 4 === 2 && !isLowPowerAudioDevice()) {
       playTick(ctx, dest, { time, gain: 0.075 });
     }
   },

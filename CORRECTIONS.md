@@ -1,3 +1,31 @@
+## Critical bug fix + celebration/HUD pass
+
+- **Found and fixed a serious bug**: the `completed` check had a leftover
+  `return true;` before the real logic, so every level showed as instantly
+  complete the moment it loaded — the puzzle was unplayable. Removed the
+  dead line; levels now start unsolved as normal.
+- Removed the small duplicate "Level X Complete!" header banner — only the
+  big centered trophy modal (with petals + coin/diamond collect) shows now.
+- Petal burst now gets a clear moment alone before coins/diamonds start
+  collecting (coin chime at 650ms, diamond chime at 1050ms, was 420/780),
+  and the +N float travels further (-46px vs -30px) so it reads as flying
+  up into the total.
+- The Ice/Triples/Chains/Bombs mechanics badge is no longer absolutely
+  positioned at a fixed vh (which could land on top of the tubes on some
+  screen heights) — it's now a normal flow element directly above the tube
+  rows, so it always sits with a clean gap above them.
+
+## Gameplay HUD spacing pass
+
+- Mechanics badge row (Ice / Triples / Chains / Bombs) moved from `top-[8.5vh]`
+  to `top-[13.5vh]` and given roomier padding — it no longer sits jammed
+  against the "Sort the objects" subtitle.
+- The "Level X Complete!" mid-round banner moved from `top-[9%]` to
+  `top-[17%]` with slightly more internal padding — it no longer touches the
+  top edge / overlaps the header and timer.
+- Both were verified by temporarily forcing their trigger state on and
+  screenshotting, then reverted before building.
+
 # SortVerse correction pass
 
 ## Fixed
@@ -60,3 +88,30 @@ Production verification:
 npm run lint
 npm run build
 ```
+
+## Fix pass — gameplay reliability
+
+- **Root cause of "no completion notification":** the win check compared
+  `object.chainLayers === 0`, but ordinary objects never had that property
+  set at all (`undefined`), and `undefined === 0` is `false`. So a level
+  could never register as complete — on *any* level, not just ones with
+  chain pieces. Fixed to `(object.chainLayers ?? 0) === 0`.
+- **Root cause of unsolvable levels:** the chain/frozen/bomb/tripleBurst
+  obstacle mechanics had solvability bugs — a 2-layer chain needed a
+  3-of-a-kind match to happen twice, but only 3 spare copies of that color
+  ever exist (the 4th is the locked chain piece itself), so a second match
+  was never possible. Separately, `tripleBurst` and bomb detonation
+  permanently deleted objects from tubes, leaving fewer than 4 copies of a
+  color in play, which makes that color's tube — and the whole level —
+  impossible to finish. Both mechanics are now switched off
+  (`difficultyParams().mechanics`) until they can be redesigned
+  non-destructively; puzzles are back to reliably solvable tube sorting
+  with the working difficulty curve (colors / empty tubes / timer) intact.
+- The Level Complete modal (stars, gold/diamonds earned, Next Level /
+  Play Again) was already implemented correctly — it just never showed
+  because `completed` could never become `true`. Both fixes above restore
+  it.
+- Player progress temporarily seeded to Level 5 (Normal) for this build so
+  testing doesn't require replaying Levels 1-4 — see `APP_RESET_KEY` in
+  `src/lib/playerStats.js`. Bump/reset that when going back to a clean
+  Level 1 start.

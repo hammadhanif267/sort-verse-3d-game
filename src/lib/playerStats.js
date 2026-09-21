@@ -9,7 +9,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_STATS = { level: 0, coins: 0, diamonds: 0 };
-const APP_RESET_KEY = "sortverse-professional-mechanics-v10";
+const APP_RESET_KEY = "sortverse-fix-pass-v11-start-at-5";
 
 function readNumber(key, fallback) {
   if (typeof window === "undefined") return fallback;
@@ -29,16 +29,19 @@ export function usePlayerStats() {
   const [stats, setStats] = useState(DEFAULT_STATS);
 
   useEffect(() => {
-    // Every delivered build starts from a clean Level 1 state.
-    // The versioned key makes this reset happen once for this build only;
-    // progress earned after first launch is then persisted normally.
+    // Every delivered build starts from a clean state — except this one,
+    // which is seeded to Level 5 (Normal) on request, purely to make it
+    // quick to test the fixes without replaying Levels 1-4 first.
     if (!window.localStorage.getItem(APP_RESET_KEY)) {
-      window.localStorage.removeItem("sortverse-difficulty-progress");
       window.localStorage.removeItem("sortverse-level-stars");
       window.localStorage.removeItem("sortverse-level-rewards");
-      window.localStorage.setItem(STORAGE_KEYS.level, "0");
-      window.localStorage.setItem(STORAGE_KEYS.coins, "0");
-      window.localStorage.setItem(STORAGE_KEYS.diamonds, "0");
+      window.localStorage.setItem(
+        "sortverse-difficulty-progress",
+        JSON.stringify({ normal: 4, hard: 0, expert: 0 }),
+      );
+      window.localStorage.setItem(STORAGE_KEYS.level, "4");
+      window.localStorage.setItem(STORAGE_KEYS.coins, "400");
+      window.localStorage.setItem(STORAGE_KEYS.diamonds, "12");
       window.localStorage.setItem(APP_RESET_KEY, "1");
     }
 
