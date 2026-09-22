@@ -543,13 +543,26 @@ export function playCoinCollectSound({ pitch = 0 } = {}) {
     bus.gain.value = 1;
     bus.connect(masterGain);
     const now = ctx.currentTime + 0.02;
+
+    // Bright, punchy "ding-ding!" — the classic high-pitched coin pickup.
     playToneBurst(ctx, bus, {
-      notes: [74 + pitch, 78 + pitch, 81 + pitch, 86 + pitch, 90 + pitch],
+      notes: [83 + pitch, 88 + pitch],
       start: now,
-      duration: 0.15,
-      gain: 0.36,
-      type: "sine",
+      duration: 0.17,
+      gain: 0.4,
+      type: "triangle",
     });
+
+    // A fast sparkling run right after gives it the "cha-ching, coins
+    // pouring in" collection feel instead of a single flat chime.
+    playToneBurst(ctx, bus, {
+      notes: [90 + pitch, 95 + pitch, 99 + pitch, 102 + pitch],
+      start: now + 0.1,
+      duration: 0.13,
+      gain: 0.3,
+      type: "square",
+    });
+
     window.setTimeout(() => bus.disconnect(), 900);
   });
 }

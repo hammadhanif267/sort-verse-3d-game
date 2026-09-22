@@ -441,6 +441,46 @@ function CelebrationPetals() {
   );
 }
 
+/** Small coin/gem icons that visibly fly in, spinning, and collect into the
+ * reward total — the actual "real coin collection" flourish, not just a
+ * fading text label. */
+function FlyingRewards({ active, Icon, count = 6 }) {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => ({
+        id: i,
+        x: (Math.random() - 0.5) * 110,
+        y: 34 + Math.random() * 34,
+        rotate: (Math.random() - 0.5) * 360,
+        delay: Math.random() * 160,
+        duration: 560 + Math.random() * 200,
+      })),
+    [count],
+  );
+
+  if (!active) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-visible">
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          className="reward-particle absolute left-1/2 top-1/2"
+          style={{
+            animationDelay: `${p.delay}ms`,
+            animationDuration: `${p.duration}ms`,
+            "--fx": `${p.x}px`,
+            "--fy": `${p.y}px`,
+            "--frot": `${p.rotate}deg`,
+          }}
+        >
+          <Icon className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]" />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function GameplayScene({
   level = 1,
   difficulty = "normal",
@@ -535,7 +575,6 @@ export default function GameplayScene({
     window.localStorage.setItem(progressKey, JSON.stringify(progress));
     window.localStorage.setItem(starsKey, JSON.stringify(stars));
     window.localStorage.setItem(rewardsKey, JSON.stringify(rewards));
-    window.dispatchEvent(new Event("sortverse-progress"));
 
     if (difficulty === "normal") {
       completeLevel({ coins: coinReward, diamonds: diamondReward });
@@ -1001,15 +1040,17 @@ export default function GameplayScene({
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
                 <div className="mt-1 text-lg font-black text-yellow-300">{"★".repeat(earnedStars)}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
+              <div className="relative rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
                 <div className="mt-1 flex items-center justify-center gap-3 text-sm font-black">
                   <span className="relative inline-flex items-center gap-1.5 text-yellow-300">
+                    <FlyingRewards active={coinPlay} Icon={HomeCoinIcon} />
                     <span className={coinPlay ? "reward-pop" : ""}>+{coinCount}</span>
                     <HomeCoinIcon className="h-4 w-4" />
                     {coinPlay && <span key="coin-float" className="reward-float text-yellow-200">+{coinReward}</span>}
                   </span>
                   <span className="relative inline-flex items-center gap-1.5 text-violet-200">
+                    <FlyingRewards active={gemPlay} Icon={HomeGemIcon} count={4} />
                     <span className={gemPlay ? "reward-pop" : ""}>+{gemCount}</span>
                     <HomeGemIcon className="h-4 w-4" />
                     {gemPlay && <span key="gem-float" className="reward-float text-cyan-200">+{diamondReward}</span>}

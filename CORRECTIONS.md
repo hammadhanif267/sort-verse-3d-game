@@ -1,3 +1,30 @@
+## Daily Challenge page (new)
+
+- New route `/daily` — a full Daily Challenge hub: back header with
+  coins/diamonds, a streak strip ("Day N of 7" + a live "next reward in
+  Xh Ym" countdown to local midnight + a streak-flame badge once a streak
+  is active), a 7-day Mon-Sun row (done = green check, today = gold ring,
+  future = locked with a small coin/gem/gift preview), and a "Today's
+  Puzzle" card with a mini tube preview, the level, reward chips, and a
+  Play button.
+- "Today's puzzle" is a real playable level: `level = 1 + (day-index % 12)`
+  at `difficulty=normal`, so it always uses the existing 12 levels and is
+  never lock-gated by the player's normal progress. Play links to
+  `/gameplay?level=<n>&difficulty=normal` — GameplayScene itself is
+  completely untouched.
+- Completion is detected read-only, from the same `sortverse-level-rewards`
+  localStorage entry the rest of the app already writes on level clear
+  (`normal-<level>`) — no changes to gameplay/completion code were needed.
+  A new `sortverse-daily-completed` map (date -> reward) is written only by
+  this page, purely to drive the streak row and flame count.
+- Home page's "Daily Challenge" button is no longer disabled; it now links
+  to `/daily`.
+- Added `GiftIcon`, `CheckCircleIcon`, `LockIcon` to icons.jsx, matching the
+  existing icon style.
+- Note: the puzzle preview thumbnail uses the game's own tube/colour system
+  (not fruit-crate art like the reference) since fruit assets don't exist
+  in this project — kept it in the app's own visual language instead.
+
 ## Critical bug fix + celebration/HUD pass
 
 - **Found and fixed a serious bug**: the `completed` check had a leftover

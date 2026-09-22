@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GameplayScene, { difficultyParams } from "../../components/game/GameplayScene";
+import { TimerIcon } from "@/components/icons";
 import { playIntroChime } from "@/lib/sound";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 
@@ -111,7 +112,10 @@ function GameplayContent() {
                     : "border-cyan-300/30 bg-[#06243a]/90"
                 }`}
               >
-                <span className={timeLeft <= 15 ? "text-red-300" : "text-cyan-300"}>◷</span>
+                <TimerIcon
+                  strokeWidth={2.4}
+                  className={`h-3.5 w-3.5 shrink-0 ${timeLeft <= 15 ? "text-red-300" : "text-cyan-300"}`}
+                />
                 <span>{formatTime(timeLeft)}</span>
               </div>
             </header>

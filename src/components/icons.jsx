@@ -41,6 +41,17 @@ export function UserIcon({ className, strokeWidth = 2 }) {
   );
 }
 
+export function TimerIcon({ className, strokeWidth = 2 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2.6 2.6" />
+      <path d="M9.5 2.5h5" />
+      <path d="M12 2.5V4.5" />
+    </svg>
+  );
+}
+
 /* ---------------- Home Menu Icons ---------------- */
 
 export function LevelsIcon({ className }) {
@@ -197,6 +208,57 @@ export function GemIcon({ className }) {
         fill="#ffffff"
         opacity="0.4"
       />
+    </svg>
+  );
+}
+
+/* ---------------- Daily Challenge Icons ---------------- */
+
+/* Gift box — used for streak rewards and the "next reward" countdown. */
+export function GiftIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <defs>
+        <linearGradient id="giftBoxGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ff6fa8" />
+          <stop offset="100%" stopColor="#d61f6e" />
+        </linearGradient>
+        <linearGradient id="giftLidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffe45a" />
+          <stop offset="100%" stopColor="#ffb300" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="10.5" width="16" height="10" rx="1.4" fill="url(#giftBoxGrad)" />
+      <rect x="3" y="7" width="18" height="4" rx="1.2" fill="url(#giftLidGrad)" />
+      <rect x="10.6" y="7" width="2.8" height="13.5" fill="#ffffff" opacity="0.85" />
+      <path
+        d="M12 7c-1.6 0-3.4-.9-3.4-2.6C8.6 3 9.9 2 11.3 2c1.5 0 2.7 1.8 2.7 5Z"
+        fill="url(#giftLidGrad)"
+      />
+      <path
+        d="M12 7c1.6 0 3.4-.9 3.4-2.6C15.4 3 14.1 2 12.7 2c-1.5 0-2.7 1.8-2.7 5Z"
+        fill="url(#giftLidGrad)"
+      />
+    </svg>
+  );
+}
+
+/* Simple check mark in a filled circle — completed states. */
+export function CheckCircleIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <circle cx="12" cy="12" r="10.5" fill="#22c55e" />
+      <path d="M7.5 12.3l3 3 6-6.4" fill="none" stroke="#ffffff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* Padlock — locked/future days. */
+export function LockIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
     </svg>
   );
 }

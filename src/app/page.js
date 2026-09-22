@@ -160,12 +160,12 @@ export default function HomePage() {
                 <MenuButton
                   icon={CalendarIcon}
                   title="Daily Challenge"
-                  disabled
+                  href="/daily"
                   blue
                 />
 
                 {/* Build Your City */}
-                <MenuButton title="Build Your City" disabled purple />
+                <MenuButton title="Build Your City" href="/city" purple />
               </section>
 
               {/* Bottom navigation */}
