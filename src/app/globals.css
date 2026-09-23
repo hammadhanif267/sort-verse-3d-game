@@ -184,3 +184,18 @@ a:focus-visible {
   100% { transform: scale(1); }
 }
 .reward-pop { display: inline-block; animation: reward-pop 260ms ease-out; }
+
+/* ---------- City page: twinkling sparkles over the skyline ---------- */
+@keyframes city-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: var(--sparkle-peak, 0.9); transform: scale(1); }
+}
+.city-sparkle {
+  position: absolute;
+  border-radius: 999px;
+  background: radial-gradient(circle, #fff 0%, #ffe98a 45%, transparent 75%);
+  animation-name: city-twinkle;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  pointer-events: none;
+}

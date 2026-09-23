@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Gem } from "lucide-react";
@@ -8,19 +9,119 @@ import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { useCityProgress } from "@/lib/cityProgress";
 import { CityIcon } from "@/components/icons";
+import { CelebrationPetals } from "@/components/RewardCelebration";
+import { playLevelCompleteVoice } from "@/lib/sound";
+
+const SEEN_LEVEL_KEY = "sortverse-city-seen-level";
+
+/** Small twinkling lights scattered over the skyline — more of them, and a
+ * touch brighter, the further the city has grown. Purely decorative, so a
+ * fixed seeded layout (not re-randomised every render) keeps it calm
+ * instead of flickering into new positions on every re-render. */
+function CitySparkles({ cityLevel }) {
+  const count = Math.min(18, 4 + cityLevel * 2);
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, i) => ({
+        id: i,
+        left: 8 + ((i * 37) % 84),
+        top: 10 + ((i * 53) % 62),
+        size: 2 + (i % 3),
+        delay: (i * 220) % 2600,
+        duration: 1800 + (i % 5) * 260,
+      })),
+    [],
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {sparkles.slice(0, count).map((s) => (
+        <span
+          key={s.id}
+          className="city-sparkle"
+          style={{
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: s.size,
+            height: s.size,
+            animationDelay: `${s.delay}ms`,
+            animationDuration: `${s.duration}ms`,
+            "--sparkle-peak": cityLevel >= 8 ? 1 : cityLevel >= 4 ? 0.85 : 0.6,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function CityPage() {
   const { coins, diamonds } = usePlayerStats();
   useBackgroundMusic("menu");
 
-  const { cityLevel, maxCityLevel, isMaxLevel, percent, starsIntoLevel, starsPerLevel, totalStars, maxStars } =
-    useCityProgress();
+  const {
+    cityLevel,
+    cityStage,
+    maxCityLevel,
+    isMaxLevel,
+    percent,
+    starsIntoLevel,
+    starsPerLevel,
+    totalStars,
+    maxStars,
+  } = useCityProgress();
 
-  // Purely cosmetic: the skyline reads a touch brighter/more saturated as
-  // the city grows, so leveling up feels like it actually changed
-  // something on screen even though it's the same photo at every level.
-  const growth = Math.min(1, (cityLevel - 1) / Math.max(1, maxCityLevel - 1));
-  const imageFilter = `brightness(${(0.88 + growth * 0.24).toFixed(2)}) saturate(${(1 + growth * 0.35).toFixed(2)})`;
+  // City artwork changes at the six supplied stage milestones. The incoming
+  // image fades in over the previous one so the city visibly grows instead
+  // of snapping to a different picture.
+  const [shownStage, setShownStage] = useState(cityStage);
+  const [incomingStage, setIncomingStage] = useState(null);
+  const [showIncoming, setShowIncoming] = useState(false);
+
+  useEffect(() => {
+    if (cityStage === shownStage) return undefined;
+
+    setIncomingStage(cityStage);
+    setShowIncoming(false);
+    const frame = window.requestAnimationFrame(() => setShowIncoming(true));
+    const timer = window.setTimeout(() => {
+      setShownStage(cityStage);
+      setIncomingStage(null);
+      setShowIncoming(false);
+    }, 760);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [cityStage, shownStage]);
+
+  // Celebrate the moment the city actually levels up — compared against the
+  // last level this browser saw (persisted), so it fires whether that
+  // growth happened just now while this page was open, or happened earlier
+  // from playing on the Levels screen and only shows up next time this page
+  // is opened. Never fires for a brand-new player's very first look.
+  const [celebrateLevelUp, setCelebrateLevelUp] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let seen = null;
+    try {
+      seen = Number(window.localStorage.getItem(SEEN_LEVEL_KEY));
+    } catch {}
+    const hasPriorRecord = Number.isFinite(seen) && seen > 0;
+
+    if (hasPriorRecord && seen < cityLevel) {
+      setCelebrateLevelUp(true);
+      playLevelCompleteVoice("Your city grew!");
+      window.setTimeout(() => setCelebrateLevelUp(false), 1600);
+    }
+
+    if (!hasPriorRecord || seen !== cityLevel) {
+      try {
+        window.localStorage.setItem(SEEN_LEVEL_KEY, String(cityLevel));
+      } catch {}
+    }
+  }, [cityLevel]);
 
   return (
     <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
@@ -57,21 +158,44 @@ export default function CityPage() {
 
             <section className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
               {/* City image */}
-              <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-3xl border border-cyan-300/20 shadow-[0_10px_28px_rgba(0,0,0,0.4)]">
+              <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#020912] shadow-[0_10px_28px_rgba(0,0,0,0.4)]">
                 <Image
-                  src="/images/home-city-background.webp"
-                  alt="Your floating city"
+                  src={`/images/city-stages/city-stage-${shownStage}.webp`}
+                  alt={`Your floating city — Stage ${shownStage}`}
                   fill
+                  priority
                   sizes="430px"
-                  className="object-cover object-center transition-[filter] duration-700"
-                  style={{ filter: imageFilter }}
+                  className={`object-cover object-center transition-opacity duration-700 ${incomingStage ? "" : ""}`}
+                  style={{ opacity: incomingStage ? 0 : 1 }}
                 />
+                {incomingStage && (
+                  <Image
+                    src={`/images/city-stages/city-stage-${incomingStage}.webp`}
+                    alt={`Your floating city — Stage ${incomingStage}`}
+                    fill
+                    sizes="430px"
+                    className="object-cover object-center transition-opacity duration-700"
+                    style={{ opacity: showIncoming ? 1 : 0 }}
+                  />
+                )}
+                <CitySparkles cityLevel={cityLevel} />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020912]/70 via-transparent to-[#020912]/10" />
 
                 <div className="absolute left-1/2 top-2.5 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-purple-300/40 bg-[#1a0a2a]/85 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-purple-100 backdrop-blur">
                   <CityIcon className="h-3.5 w-3.5" />
                   {isMaxLevel ? "Max City" : "Growing"}
                 </div>
+
+                {celebrateLevelUp && (
+                  <>
+                    <CelebrationPetals />
+                    <div className="absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 text-center">
+                      <span className="reward-pop inline-block rounded-full border border-yellow-300/60 bg-[#1a0a2a]/90 px-4 py-1.5 text-xs font-black text-yellow-200 shadow-[0_6px_20px_rgba(0,0,0,0.5)] backdrop-blur">
+                        ✨ City leveled up!
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Level badge, overlapping the image bottom edge like the reference */}
