@@ -262,3 +262,125 @@ export function LockIcon({ className }) {
     </svg>
   );
 }
+
+/* ---------------- Ranking / Profile game-style icons (filled, glossy) ---------------- */
+
+function Svg({ className, children }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+function Grad({ id, stops, vertical = true }) {
+  return (
+    <linearGradient id={id} x1="0" y1="0" x2={vertical ? 0 : 1} y2={vertical ? 1 : 0}>
+      {stops.map((c, i) => (
+        <stop key={c} offset={i / (stops.length - 1)} stopColor={c} />
+      ))}
+    </linearGradient>
+  );
+}
+
+export function StarIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-star" stops={["#fff2a0", "#ffc21a", "#d98500"]} />
+      </defs>
+      <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="url(#ic-star)" stroke="#a76500" strokeWidth="1" strokeLinejoin="round" />
+      <path d="M12 5.4l1.5 3.1" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity=".7" />
+    </Svg>
+  );
+}
+
+export function FlagIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-pole" stops={["#eef4fa", "#8fa1b3"]} vertical={false} />
+        <Grad id="ic-flag" stops={["#8bf59a", "#22a72f", "#0f6b18"]} />
+      </defs>
+      <rect x="4.2" y="3" width="2.2" height="18" rx="1.1" fill="url(#ic-pole)" />
+      <path d="M6.4 4.5h12.2l-2.6 4.2 2.6 4.2H6.4z" fill="url(#ic-flag)" stroke="#0f6b18" strokeWidth=".8" strokeLinejoin="round" />
+      <path d="M8 6h6" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity=".55" />
+    </Svg>
+  );
+}
+
+export function CrownIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-crown" stops={["#fff2a0", "#ffc21a", "#d98500"]} />
+      </defs>
+      <path d="M3 8.5l4.6 4.2L12 5l4.4 7.7L21 8.5 19.2 19H4.8z" fill="url(#ic-crown)" stroke="#a76500" strokeWidth="1" strokeLinejoin="round" />
+      <circle cx="12" cy="15" r="1.4" fill="#ff4d5e" />
+      <circle cx="7.6" cy="15.6" r="1" fill="#4aa8ff" />
+      <circle cx="16.4" cy="15.6" r="1" fill="#4ee08a" />
+    </Svg>
+  );
+}
+
+export function FlameIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-flame" stops={["#ffd24a", "#ff8a1f", "#e8341a"]} />
+      </defs>
+      <path d="M12 2c.8 3.6 5.5 5.8 5.5 11a5.5 5.5 0 0 1-11 0c0-2.3 1.1-3.7 2.3-4.7.1 1.6.9 2.5 1.8 2.7C10.2 8.3 10.4 5 12 2z" fill="url(#ic-flame)" />
+      <path d="M12 11.5c.4 1.6 2.4 2.4 2.4 4.4a2.4 2.4 0 0 1-4.8 0c0-1.2.6-1.8 1.2-2.3.1.7.5 1 .9 1.1.2-1 .1-2 .3-3.2z" fill="#ffe27a" />
+    </Svg>
+  );
+}
+
+const MEDAL_TONES = {
+  gold: ["#fff2a0", "#ffc21a", "#a76500"],
+  green: ["#a6f5b8", "#22a72f", "#0f6b18"],
+  orange: ["#ffd2a0", "#ff8a1f", "#a34a00"],
+  red: ["#ffb0b6", "#e0283a", "#8f0f1c"],
+};
+
+export function MedalIcon({ className, tone = "gold" }) {
+  const [light, base, dark] = MEDAL_TONES[tone] || MEDAL_TONES.gold;
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id={`ic-medal-${tone}`} stops={[light, base, dark]} />
+      </defs>
+      <path d="M7 2h4l1.2 6.5-3.2 1z" fill="#3b82f6" />
+      <path d="M17 2h-4l-1.2 6.5 3.2 1z" fill="#ef4444" />
+      <circle cx="12" cy="15" r="6.5" fill={`url(#ic-medal-${tone})`} stroke={dark} strokeWidth="1" />
+      <path d="M12 11.6l1.1 2.3 2.5.3-1.8 1.7.5 2.5-2.3-1.2-2.3 1.2.5-2.5-1.8-1.7 2.5-.3z" fill="#fff" opacity=".85" />
+    </Svg>
+  );
+}
+
+export function ChartIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-bar" stops={["#9ff0ff", "#1aa7e8"]} />
+      </defs>
+      <rect x="3.5" y="12" width="4.5" height="8.5" rx="1.2" fill="url(#ic-bar)" />
+      <rect x="9.75" y="4" width="4.5" height="16.5" rx="1.2" fill="url(#ic-bar)" />
+      <rect x="16" y="8.5" width="4.5" height="12" rx="1.2" fill="url(#ic-bar)" />
+    </Svg>
+  );
+}
+
+export function TrophyGoldIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <defs>
+        <Grad id="ic-cup" stops={["#fff2a0", "#ffc21a", "#d98500"]} />
+      </defs>
+      <path d="M7 5.5H4.2v1.6A3 3 0 0 0 7.4 10M17 5.5h2.8v1.6A3 3 0 0 1 16.6 10" fill="none" stroke="#d98500" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M7 3.5h10v6a5 5 0 0 1-10 0z" fill="url(#ic-cup)" stroke="#a76500" strokeWidth="1" strokeLinejoin="round" />
+      <rect x="10.6" y="14" width="2.8" height="3.4" fill="#d98500" />
+      <rect x="7.5" y="17.4" width="9" height="3.2" rx="1.2" fill="url(#ic-cup)" stroke="#a76500" strokeWidth=".9" />
+      <path d="M9.3 5.5v3" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity=".6" />
+    </Svg>
+  );
+}

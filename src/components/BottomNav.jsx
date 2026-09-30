@@ -6,8 +6,8 @@ import { GridIcon, HomeIcon, TrophyIcon, UserIcon } from "@/components/icons";
 const TABS = [
   { key: "home", label: "Home", href: "/", icon: HomeIcon },
   { key: "levels", label: "Levels", href: "/levels", icon: GridIcon },
-  { key: "ranking", label: "Ranking", href: null, icon: TrophyIcon },
-  { key: "profile", label: "Profile", href: null, icon: UserIcon },
+  { key: "ranking", label: "Ranking", href: "/ranking", icon: TrophyIcon },
+  { key: "profile", label: "Profile", href: "/profile", icon: UserIcon },
 ];
 
 /**

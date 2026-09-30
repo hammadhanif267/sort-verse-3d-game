@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePlayerStats } from "@/lib/playerStats";
+import { usePlayerProfile } from "@/lib/ranking";
+import { Avatar } from "@/components/RankBits";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import BottomNav from "@/components/BottomNav";
 import { CalendarIcon, CityGoldIcon, LevelsIcon } from "@/components/icons";
@@ -10,6 +12,7 @@ import { Gem } from "lucide-react";
 
 export default function HomePage() {
   const { level, coins, diamonds } = usePlayerStats();
+  const profile = usePlayerProfile();
 
   // One continuous, professional menu theme. It keeps playing the whole time
   // the player is on a menu screen and is not restarted when moving between
@@ -53,22 +56,20 @@ export default function HomePage() {
             <div className="relative z-10 flex h-full min-h-0 flex-col">
               {/* Top HUD */}
               <header className="flex shrink-0 items-center justify-between px-4 pt-4">
-                {/* Player */}
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-400/60 bg-[#07344b] text-lg shadow-[0_0_15px_rgba(0,200,255,0.12)]">
-                    <span className="text-base">👤</span>
-                  </div>
+                {/* Player: tap to open the profile */}
+                <Link href="/profile" prefetch className="flex items-center gap-2.5">
+                  <Avatar name={profile.name} you size={40} avatar={profile.avatar} />
 
                   <div className="leading-tight">
-                    <div className="text-[9px] font-medium text-cyan-100/55">
-                      Player
+                    <div className="max-w-[110px] truncate text-[11px] font-bold text-cyan-100/70">
+                      {profile.name === "You" ? "Player" : profile.name}
                     </div>
 
                     <div className="text-sm font-bold text-white">
                       Level {level}
                     </div>
                   </div>
-                </div>
+                </Link>
 
                 {/* Currency */}
                 <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { touchWeekBaseline } from "@/lib/ranking";
 
 const STORAGE_KEYS = {
   level: "sortverse-player-level",
@@ -66,6 +67,9 @@ export function usePlayerStats() {
         diamonds: readNumber(STORAGE_KEYS.diamonds, DEFAULT_STATS.diamonds),
       });
     };
+
+    // Snapshot the score at the start of each week for the Weekly ranking board.
+    touchWeekBaseline();
 
     sync();
     window.addEventListener("storage", sync);
