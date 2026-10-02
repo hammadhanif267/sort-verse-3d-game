@@ -1,3 +1,4 @@
+import CongratsToast from "@/components/CongratsToast";
 import "./globals.css";
 
 export const metadata = {
@@ -16,7 +17,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">{children}<CongratsToast /></body>
     </html>
   );
 }

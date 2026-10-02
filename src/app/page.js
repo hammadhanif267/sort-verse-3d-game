@@ -7,8 +7,8 @@ import { usePlayerProfile } from "@/lib/ranking";
 import { Avatar } from "@/components/RankBits";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import BottomNav from "@/components/BottomNav";
-import { CalendarIcon, CityGoldIcon, LevelsIcon } from "@/components/icons";
-import { Gem } from "lucide-react";
+import { CalendarIcon, CityGoldIcon, HomeCoinIcon, HomeGemIcon, LevelsIcon } from "@/components/icons";
+import { ChevronRight } from "lucide-react";
 
 export default function HomePage() {
   const { level, coins, diamonds } = usePlayerStats();
@@ -75,17 +75,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2">
                   {/* Premium Gold Coins */}
                   <div className="flex items-center gap-1.5 rounded-full border border-yellow-400/40 bg-[#06243a]/95 px-3 py-1.5 text-xs font-bold shadow-[0_0_12px_rgba(255,190,0,0.08)]">
-                    <span
-                      className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fff7bd] via-[#ffd43b] to-[#d58a00] shadow-[0_0_10px_rgba(255,190,0,0.42)] ring-1 ring-yellow-200/60"
-                      aria-hidden="true"
-                    >
-                      <span className="absolute inset-[2px] rounded-full border-[1.5px] border-[#a76500]/70" />
-                      <span className="absolute inset-[4px] rounded-full border border-[#fff0a0]/70" />
-                      <span className="absolute left-[4px] top-[3px] h-[4px] w-[2px] rotate-[35deg] rounded-full bg-white/75" />
-                      <span className="relative z-10 -translate-y-[0.5px] text-[9px] font-black leading-none text-[#704000] drop-shadow-[0_1px_0_rgba(255,255,255,0.35)]">
-                        $
-                      </span>
-                    </span>
+<HomeCoinIcon className="h-5 w-5" />
 
                     <span className="text-yellow-50">
                       {coins.toLocaleString()}
@@ -94,12 +84,7 @@ export default function HomePage() {
 
                   {/* Diamonds */}
                   <div className="flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-[#06243a]/95 px-3 py-1.5 text-xs font-bold shadow-[0_0_12px_rgba(0,210,255,0.08)]">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-cyan-200 via-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(0,210,255,0.3)]">
-                      <Gem
-                        className="h-3.5 w-3.5 text-white"
-                        strokeWidth={2.5}
-                      />
-                    </span>
+<HomeGemIcon className="h-5 w-5" />
 
                     <span className="text-cyan-50">{diamonds}</span>
                   </div>
@@ -230,15 +215,7 @@ function MenuButton({
         </span>
       )}
 
-      <span
-        className={`text-lg transition-colors duration-200 ${
-          purple
-            ? "text-white group-hover:text-yellow-300"
-            : "text-cyan-300 group-hover:text-yellow-300"
-        }`}
-      >
-        ›
-      </span>
+      <ChevronRight className={`h-4 w-4 transition-colors duration-200 ${purple ? "text-white group-hover:text-yellow-300" : "text-cyan-300 group-hover:text-yellow-300"}`} strokeWidth={2.4} />
     </>
   );
 

@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, Flame } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { playCoinCollectSound } from "@/lib/sound";
 import { CelebrationPetals, FlyingRewards } from "@/components/RewardCelebration";
+import { showCongrats } from "@/components/CongratsToast";
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -184,19 +186,27 @@ export default function DailyChallengePage() {
 
   const cycleDay = ((now.getDay() + 6) % 7) + 1; // 1 = Monday ... 7 = Sunday
 
-  // Current streak: consecutive completed days counting back from today.
+  // A day counts as claimed when the player either completes the daily
+  // puzzle or claims that day's free daily gift. The streak row and the
+  // reward card now use the same source of truth, so claiming a reward
+  // immediately places a tick on that calendar day (including older days
+  // already present in localStorage, such as yesterday after a refresh).
+  const isDayClaimed = (key) => Boolean(dailyLog[key] || freeClaimLog[key]);
+  const isTodayClaimed = isDayClaimed(todayKey);
+
+  // Current streak: consecutive claimed days counting back from today.
   const streak = useMemo(() => {
     let count = 0;
     const cursor = new Date(now);
-    // If today isn't done yet, start counting from yesterday so an
-    // in-progress day doesn't reset the streak display to zero.
-    if (!isTodayDone) cursor.setDate(cursor.getDate() - 1);
-    while (dailyLog[dateKey(cursor)]) {
+    // If today has not been claimed yet, keep showing the active streak
+    // through yesterday instead of dropping the display to zero.
+    if (!isTodayClaimed) cursor.setDate(cursor.getDate() - 1);
+    while (dailyLog[dateKey(cursor)] || freeClaimLog[dateKey(cursor)]) {
       count += 1;
       cursor.setDate(cursor.getDate() - 1);
     }
     return count;
-  }, [dailyLog, now, isTodayDone]);
+  }, [dailyLog, freeClaimLog, now, isTodayClaimed]);
 
   // Time left until the next local midnight, for "next reward" countdown.
   const msUntilMidnight = useMemo(() => {
@@ -211,7 +221,7 @@ export default function DailyChallengePage() {
   // per completed cycle, instead of only showing the icon. Guarded by its
   // own localStorage flag so refreshing the page can't pay it out twice.
   useEffect(() => {
-    if (!isTodayDone || streak === 0 || streak % 7 !== 0) return;
+    if (!isTodayClaimed || streak === 0 || streak % 7 !== 0) return;
 
     const claimKey = "sortverse-daily-streak-bonus";
     let claimed = {};
@@ -227,7 +237,8 @@ export default function DailyChallengePage() {
     } catch {}
 
     addRewards({ coins: 200, diamonds: 5 });
-  }, [isTodayDone, streak, todayKey, addRewards]);
+    showCongrats({ kind: "reward", title: "7-day streak bonus claimed", coins: 200, diamonds: 5 });
+  }, [isTodayClaimed, streak, todayKey, addRewards]);
 
   // Preview shown before the puzzle is played — same base formula
   // GameplayScene actually pays out (100 coins per level, 1+ diamonds for
@@ -249,6 +260,7 @@ export default function DailyChallengePage() {
     } catch {}
     setFreeClaimLog(log);
     addRewards({ coins: FREE_CLAIM_COINS, diamonds: FREE_CLAIM_DIAMONDS });
+    showCongrats({ kind: "reward", title: "Daily reward claimed", coins: FREE_CLAIM_COINS, diamonds: FREE_CLAIM_DIAMONDS });
 
     // Same trophy-screen flourish as finishing a level: petals burst, then
     // the coin and gem icons fly up in turn with a collect chime each.
@@ -288,7 +300,7 @@ export default function DailyChallengePage() {
             {/* Header */}
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-                <span className="text-xl leading-none">‹</span>
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Daily Challenge</span>
               </Link>
 
@@ -319,8 +331,8 @@ export default function DailyChallengePage() {
                       Day {cycleDay} <span className="text-white/40">of 7</span>
                     </div>
                     {streak > 0 && (
-                      <div className="mt-0.5 text-[8px] font-bold text-orange-300">
-                        🔥 {streak}-day streak
+                      <div className="mt-0.5 flex items-center gap-1 text-[8px] font-bold text-orange-300">
+                        <><Flame className="h-3.5 w-3.5 fill-orange-400 text-orange-300" /> {streak}-day streak</>
                       </div>
                     )}
                   </div>
@@ -341,7 +353,7 @@ export default function DailyChallengePage() {
                   const key = dateKey(d);
                   const isToday = key === todayKey;
                   const isPast = d < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                  const done = Boolean(dailyLog[key]);
+                  const done = Boolean(dailyLog[key] || freeClaimLog[key]);
                   const kind = DAY_REWARD_KIND[i];
 
                   return (
@@ -436,7 +448,7 @@ export default function DailyChallengePage() {
                 <FlyingRewards active={claimGemFly} Icon={HomeGemIcon} count={4} />
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3a2a06]/80 text-lg ring-1 ring-yellow-300/30">
-                    🎁
+                    <GiftIcon className="h-9 w-9" />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-200/80">
@@ -475,8 +487,8 @@ export default function DailyChallengePage() {
 
               {/* Streak explainer */}
               <p className="mt-3 px-1 text-center text-[9px] leading-relaxed text-white/35">
-                Complete every day&apos;s puzzle to keep your streak alive. Miss a day and the
-                streak resets — Day 7 pays out a bonus gift.
+                Claim your daily gift or complete the daily puzzle to mark that day complete.
+                Keep the streak alive for 7 days to earn the bonus gift.
               </p>
             </section>
 

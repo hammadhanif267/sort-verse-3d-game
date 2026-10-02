@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Gem } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { useCityProgress } from "@/lib/cityProgress";
-import { CityIcon } from "@/components/icons";
+import { CityIcon, HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { CelebrationPetals } from "@/components/RewardCelebration";
 import { playLevelCompleteVoice } from "@/lib/sound";
+import { showCongrats } from "@/components/CongratsToast";
 
 const SEEN_LEVEL_KEY = "sortverse-city-seen-level";
 
@@ -113,6 +114,7 @@ export default function CityPage() {
     if (hasPriorRecord && seen < cityLevel) {
       setCelebrateLevelUp(true);
       playLevelCompleteVoice("Your city grew!");
+      showCongrats({ kind: "level", title: `City reached Level ${cityLevel}` });
       window.setTimeout(() => setCelebrateLevelUp(false), 1600);
     }
 
@@ -133,30 +135,23 @@ export default function CityPage() {
             {/* Header */}
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-                <span className="text-xl leading-none">‹</span>
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Your City</span>
               </Link>
 
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
-                  <span
-                    className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#fff7bd] via-[#ffd43b] to-[#d58a00] ring-1 ring-yellow-200/60"
-                    aria-hidden="true"
-                  >
-                    <span className="text-[7px] font-black leading-none text-[#704000]">$</span>
-                  </span>
+<HomeCoinIcon className="h-4 w-4" />
                   <span>{coins.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-1 rounded-full border border-cyan-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
-                  <span className="flex h-4 w-4 items-center justify-center rounded-md bg-gradient-to-br from-cyan-200 via-cyan-400 to-blue-500">
-                    <Gem className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
-                  </span>
+<HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
               </div>
             </header>
 
-            <section className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
+            <section className="game-scroll relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
               {/* City image */}
               <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#020912] shadow-[0_10px_28px_rgba(0,0,0,0.4)]">
                 <Image
@@ -191,7 +186,7 @@ export default function CityPage() {
                     <CelebrationPetals />
                     <div className="absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 text-center">
                       <span className="reward-pop inline-block rounded-full border border-yellow-300/60 bg-[#1a0a2a]/90 px-4 py-1.5 text-xs font-black text-yellow-200 shadow-[0_6px_20px_rgba(0,0,0,0.5)] backdrop-blur">
-                        ✨ City leveled up!
+                        <span className="inline-flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> City leveled up!</span>
                       </span>
                     </div>
                   </>
@@ -224,14 +219,14 @@ export default function CityPage() {
                 <p className="mt-2 text-center text-[9px] font-semibold text-white/45">
                   {isMaxLevel
                     ? `Your city is fully grown — ${totalStars} stars earned!`
-                    : `${starsIntoLevel}/${starsPerLevel} ★ toward Level ${cityLevel + 1}`}
+                    : `${starsIntoLevel}/${starsPerLevel} stars toward Level ${cityLevel + 1}`}
                 </p>
               </div>
 
               {/* Explainer */}
               <p className="mt-3 px-1 text-center text-[9px] leading-relaxed text-white/35">
                 Every star you earn clearing a level grows your city. Chase 3-star
-                clears in Levels to build it up fastest — {totalStars} of {maxStars} ★ collected so far.
+                clears in Levels to build it up fastest — {totalStars} of {maxStars} stars collected so far.
               </p>
 
               <Link

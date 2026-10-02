@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, LockKeyhole, Star } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
@@ -93,7 +94,7 @@ export default function LevelsPage() {
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-                <span className="text-xl leading-none">‹</span>
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Level Selection</span>
               </Link>
 
@@ -122,7 +123,7 @@ export default function LevelsPage() {
                       onClick={() => unlocked && setDifficulty(key)}
                       className={active ? "rounded-full bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-2 text-[10px] font-black shadow-[0_0_15px_rgba(0,180,255,0.25)]" : "flex items-center justify-center gap-1 rounded-full py-2 text-[10px] font-medium text-white/55 disabled:cursor-not-allowed disabled:opacity-45"}
                     >
-                      {!unlocked && <span className="text-[9px]">🔒</span>}
+                      {!unlocked && <LockKeyhole className="h-3 w-3" strokeWidth={2.4} />}
                       {key[0].toUpperCase() + key.slice(1)}
                     </button>
                   );
@@ -178,7 +179,7 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
           <LevelArt id={id} className="absolute inset-0 h-full w-full brightness-[0.55] saturate-[0.7]" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,10,20,.15)_0%,rgba(2,10,20,.45)_100%)]" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="rounded-full bg-[#04101c]/70 p-1.5 text-[13px] leading-none shadow-[0_2px_8px_rgba(0,0,0,0.5)]">🔒</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#04101c]/80 shadow-[0_4px_14px_rgba(0,0,0,0.55)]"><LockKeyhole className="h-4 w-4 text-cyan-100/70" strokeWidth={2.3} /></span>
           </div>
         </div>
         <span className="text-[11px] font-black text-white/50">{id}</span>
@@ -203,9 +204,9 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
         <div className="absolute inset-x-0 bottom-0 flex h-[46%] flex-col items-center justify-end gap-0.5 bg-[linear-gradient(180deg,transparent_0%,rgba(2,12,22,.5)_30%,rgba(2,12,22,.82)_100%)] pb-1">
           <span className="text-2xl font-black leading-none text-white" style={numberOutline}>{id}</span>
           {completed && (
-            <div className="flex gap-0.5 text-[11px] leading-none">
+            <div className="flex gap-0.5 leading-none">
               {[1, 2, 3].map((star) => (
-                <span key={star} className={star <= stars ? "text-yellow-300 drop-shadow-[0_0_4px_rgba(255,210,40,0.55)]" : "text-white/25"}>★</span>
+                <Star key={star} className={`h-3 w-3 ${star <= stars ? "fill-yellow-300 text-yellow-300 drop-shadow-[0_0_4px_rgba(255,210,40,0.55)]" : "fill-white/10 text-white/25"}`} strokeWidth={1.8} />
               ))}
             </div>
           )}

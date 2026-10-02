@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GameplayScene, { difficultyParams } from "../../components/game/GameplayScene";
 import { TimerIcon } from "@/components/icons";
+import { Pause, Play } from "lucide-react";
 import { playIntroChime } from "@/lib/sound";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 
@@ -92,7 +93,7 @@ function GameplayContent() {
                 aria-label={paused ? "Resume" : "Pause"}
                 className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/30 bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
               >
-                {paused ? "▶" : "❚❚"}
+                {paused ? <Play className="h-5 w-5 fill-current" strokeWidth={2.4} /> : <Pause className="h-5 w-5 fill-current" strokeWidth={2.4} />}
               </button>
 
               {/* Level */}

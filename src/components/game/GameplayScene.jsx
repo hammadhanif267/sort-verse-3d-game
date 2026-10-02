@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
 import Link from "next/link";
+import { AlarmClock, Bomb, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";
+import { showCongrats } from "@/components/CongratsToast";
 
 /* =========================================================
    SORTVERSE
@@ -13,6 +15,26 @@ import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveS
    this is the exact look from the reference art and renders
    reliably on every device.
 ========================================================= */
+
+
+function ChainIcon({ className = "", strokeWidth = 2.2 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10.6 13.4 13.4 10.6" />
+      <path d="M7.8 16.2 5.7 18.3a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 5 0" transform="translate(2.3 -2.3)" />
+      <path d="m16.2 7.8 2.1-2.1a3.5 3.5 0 1 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-5 0" transform="translate(-1.6 1.6)" />
+    </svg>
+  );
+}
 
 const CAPACITY = 4;
 
@@ -581,6 +603,7 @@ export default function GameplayScene({
     } else {
       addRewards({ coins: coinReward, diamonds: diamondReward });
     }
+    showCongrats({ kind: "level", title: `Level ${level} complete`, coins: coinReward, diamonds: diamondReward });
   }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, diamondReward]);
 
   // The trophy screen's celebration: petals launch immediately and get a
@@ -662,12 +685,12 @@ export default function GameplayScene({
     (tubeId, objectIndex, object) => {
       if (paused) return;
       if (object.chainLayers > 0) {
-        flashMechanic(`🔗 Locked! Put 3 free ${object.color} pieces together to break the chain`);
+        flashMechanic(`Locked: put 3 free ${object.color} pieces together to break the chain`);
         triggerWrongMove(tubeId);
         return;
       }
       if (object.frozen) {
-        flashMechanic(`❄️ Frozen! Put 3 free ${object.color} pieces together to melt the ice`);
+        flashMechanic(`Frozen: put 3 free ${object.color} pieces together to melt the ice`);
         triggerWrongMove(tubeId);
         return;
       }
@@ -763,8 +786,8 @@ export default function GameplayScene({
               }
             });
           });
-          if (brokeChain) flashMechanic(`🔗 Chain layer broken — ${object.color} unlocked!`);
-          if (thawedIce) flashMechanic(`❄️ Ice melted — ${object.color} freed!`);
+          if (brokeChain) flashMechanic(`Chain layer broken — ${object.color} unlocked!`);
+          if (thawedIce) flashMechanic(`Ice melted — ${object.color} freed!`);
 
           // Triple Burst is a pure bonus now — it never removes objects from
           // play (that used to leave a color short of the copies it needs to
@@ -775,7 +798,7 @@ export default function GameplayScene({
             const tail = target.objects.slice(-3);
             if (tail.length === 3 && tail.every((item) => item.color === object.color)) {
               tripleBonusAwarded = TRIPLE_BONUS_COINS;
-              flashMechanic(`✨ Triple! +${TRIPLE_BONUS_COINS} bonus coins`);
+              flashMechanic(`Triple match! +${TRIPLE_BONUS_COINS} bonus coins`);
             }
           }
         }
@@ -795,7 +818,7 @@ export default function GameplayScene({
             }
           });
         });
-        if (defused) flashMechanic("💣 Bomb defused — piece freed!");
+        if (defused) flashMechanic("Bomb defused — piece freed!");
 
         return next;
       });
@@ -928,10 +951,10 @@ export default function GameplayScene({
       <div className="absolute inset-x-0 top-[8vh] bottom-[16vh] flex flex-col items-center justify-center gap-[1.4vh] px-3">
         {(mechanics.chains || mechanics.frozen || mechanics.bombs || mechanics.tripleBurst) && (
           <div className="pointer-events-none z-20 flex items-center gap-2 rounded-full border border-white/12 bg-[#041827]/80 px-3.5 py-1.5 text-[8px] font-bold uppercase tracking-wide text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-md">
-            {mechanics.chains && <span className="inline-flex items-center gap-1">🔗 Chains</span>}
-            {mechanics.frozen && <span className="inline-flex items-center gap-1">❄️ Ice</span>}
-            {mechanics.bombs && <span className="inline-flex items-center gap-1">💣 Bombs</span>}
-            {mechanics.tripleBurst && <span className="inline-flex items-center gap-1">✨ Triples</span>}
+            {mechanics.chains && <span className="inline-flex items-center gap-1"><ChainIcon className="h-3 w-3" /> Chains</span>}
+            {mechanics.frozen && <span className="inline-flex items-center gap-1"><Snowflake className="h-3 w-3" /> Ice</span>}
+            {mechanics.bombs && <span className="inline-flex items-center gap-1"><Bomb className="h-3 w-3" /> Bombs</span>}
+            {mechanics.tripleBurst && <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> Triples</span>}
           </div>
         )}
 
@@ -1027,7 +1050,7 @@ export default function GameplayScene({
           {celebrate && <CelebrationPetals />}
 
           <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
-            <div className="text-4xl">🏆</div>
+            <Trophy className="mx-auto h-11 w-11 fill-yellow-300/15 text-yellow-300" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Level Complete!</h2>
 
@@ -1038,7 +1061,7 @@ export default function GameplayScene({
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
-                <div className="mt-1 text-lg font-black text-yellow-300">{"★".repeat(earnedStars)}</div>
+                <div className="mt-1 flex items-center justify-center gap-1">{Array.from({ length: 3 }, (_, i) => <Star key={i} className={`h-5 w-5 ${i < earnedStars ? "fill-yellow-300 text-yellow-300" : "fill-white/10 text-white/20"}`} strokeWidth={1.6} />)}</div>
               </div>
               <div className="relative rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
@@ -1099,7 +1122,7 @@ export default function GameplayScene({
       {timeUp && !completed && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
           <div className="w-full rounded-3xl border border-red-400/30 bg-[#3a0808]/95 p-6 text-center shadow-[0_0_50px_rgba(255,60,60,0.18)]">
-            <div className="text-4xl">⏰</div>
+            <AlarmClock className="mx-auto h-11 w-11 text-red-300" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Time&apos;s Up!</h2>
 
@@ -1129,7 +1152,7 @@ export default function GameplayScene({
       {paused && !completed && !timeUp && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/80 px-6 backdrop-blur-md">
           <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
-            <div className="text-4xl">⏸️</div>
+            <Pause className="mx-auto h-11 w-11 fill-cyan-200/10 text-cyan-200" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Paused</h2>
 
@@ -1142,7 +1165,7 @@ export default function GameplayScene({
                 onClick={onTogglePause}
                 className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-3 text-sm font-black text-white shadow-[0_0_18px_rgba(0,190,255,.22)] transition active:scale-[0.98]"
               >
-                ▶ Resume
+                <Play className="h-4 w-4 fill-current" /> Resume
               </button>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -1305,9 +1328,9 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pie
                   {object.chainLayers > 0 && <ChainVisual layers={object.chainLayers} />}
                   {object.frozen && <IceVisual />}
                   {object.bombTurns != null && <BombVisual turns={object.bombTurns} />}
-                  {pieceEffects?.[object.id] === "chain-break" && <FxBurst symbol="🔗" />}
-                  {pieceEffects?.[object.id] === "ice-melt" && <FxBurst symbol="❄" />}
-                  {pieceEffects?.[object.id] === "bomb" && <FxBurst symbol="💥" />}
+                  {pieceEffects?.[object.id] === "chain-break" && <FxBurst kind="chain" />}
+                  {pieceEffects?.[object.id] === "ice-melt" && <FxBurst kind="ice" />}
+                  {pieceEffects?.[object.id] === "bomb" && <FxBurst kind="bomb" />}
                 </div>
               </div>
             ))}
@@ -1359,7 +1382,7 @@ function ChainVisual({ layers = 1 }) {
       {Array.from({ length: layers }).map((_, index) => (
         <div key={index} className="chain-ring absolute inset-[8%] rounded-[42%] border-[3px] border-[#c9d4df] shadow-[0_0_5px_rgba(255,255,255,.55),inset_0_0_4px_rgba(0,0,0,.8)]" style={{ transform: `rotate(${index * 18 - 9}deg)`, opacity: 0.94 - index * 0.12 }} />
       ))}
-      <div className="absolute inset-0 flex items-center justify-center text-[11px] drop-shadow-[0_2px_3px_rgba(0,0,0,.9)]">🔗</div>
+      <div className="absolute inset-0 flex items-center justify-center"><ChainIcon className="h-3.5 w-3.5 text-white drop-shadow-[0_2px_3px_rgba(0,0,0,.9)]" strokeWidth={2.4} /></div>
     </div>
   );
 }
@@ -1367,7 +1390,7 @@ function ChainVisual({ layers = 1 }) {
 function IceVisual() {
   return (
     <div className="pointer-events-none absolute inset-[2%] z-10 rounded-[40%] border-2 border-cyan-100/70 bg-cyan-100/10 shadow-[inset_0_0_10px_rgba(160,240,255,.35),0_0_8px_rgba(100,220,255,.28)]">
-      <div className="absolute inset-0 flex items-center justify-center text-[13px] opacity-90">❄️</div>
+      <div className="absolute inset-0 flex items-center justify-center"><Snowflake className="h-4 w-4 text-white/90" strokeWidth={2.3} /></div>
     </div>
   );
 }
@@ -1377,15 +1400,16 @@ function BombVisual({ turns }) {
     <div className="pointer-events-none absolute inset-[3%] z-10">
       <div className="bomb-pulse absolute right-[4%] top-[2%] flex h-[31%] w-[31%] items-center justify-center rounded-full border border-red-200/70 bg-red-950/90 text-[8px] font-black text-white shadow-[0_0_9px_rgba(255,50,50,.7)]">{turns}</div>
       <div className="bomb-fuse absolute right-[20%] top-[-5%] h-[18%] w-[10%] rotate-[28deg] rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(255,200,60,.9)]" />
-      <div className="absolute bottom-[1%] left-[5%] rounded-full bg-black/55 px-1.5 py-0.5 text-[8px]">💣</div>
+      <div className="absolute bottom-[2%] left-[4%] flex h-5 w-5 items-center justify-center rounded-full border border-red-300/20 bg-black/60"><Bomb className="h-3 w-3 text-red-200" strokeWidth={2.3} /></div>
     </div>
   );
 }
 
-function FxBurst({ symbol }) {
+function FxBurst({ kind }) {
+  const Icon = kind === "chain" ? ChainIcon : kind === "ice" ? Snowflake : Bomb;
   return (
     <div className="pointer-events-none absolute inset-[-22%] z-30 flex items-center justify-center">
-      <span className="fx-burst text-[18px]">{symbol}</span>
+      <Icon className="fx-burst h-5 w-5 text-yellow-100 drop-shadow-[0_0_8px_rgba(255,220,120,.9)]" strokeWidth={2.2} />
       <i className="fx-spark fx-spark-a" /><i className="fx-spark fx-spark-b" /><i className="fx-spark fx-spark-c" /><i className="fx-spark fx-spark-d" />
     </div>
   );
@@ -1396,7 +1420,7 @@ function TubeBurst({ type }) {
     <div className={`pointer-events-none absolute inset-[-12%] z-20 flex items-center justify-center tube-burst-${type}`}>
       <div className="burst-ring absolute h-[45%] w-[45%] rounded-full border-4 border-yellow-200/80" />
       <div className="burst-ring burst-ring-2 absolute h-[30%] w-[30%] rounded-full border-2 border-white/80" />
-      <div className="absolute text-[28px] drop-shadow-[0_0_8px_rgba(255,190,50,.9)]">{type === "explosion" ? "💥" : "✨"}</div>
+      {type === "explosion" ? <Bomb className="h-7 w-7 text-yellow-100 drop-shadow-[0_0_8px_rgba(255,190,50,.9)]" strokeWidth={2} /> : <Sparkles className="h-7 w-7 text-yellow-100 drop-shadow-[0_0_8px_rgba(255,190,50,.9)]" strokeWidth={2} />}
       <i className="burst-star star-1">✦</i><i className="burst-star star-2">✦</i><i className="burst-star star-3">✦</i><i className="burst-star star-4">✦</i>
     </div>
   );

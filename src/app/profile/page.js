@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Pencil } from "lucide-react";
+import { Camera, Check, ChevronLeft, Pencil, ShieldCheck } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { AVATAR_BGS, AVATAR_COLORS, AVATAR_SHAPES, Avatar, GameAvatarArt } from "@/components/RankBits";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { LEAGUES, getLeague, useRanking } from "@/lib/ranking";
 import { playCoinCollectSound } from "@/lib/sound";
+import { showCongrats } from "@/components/CongratsToast";
 import { CrownIcon, FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const CLAIM_KEY = "sortverse-achievements-claimed";
@@ -66,6 +67,7 @@ export default function ProfilePage() {
     setClaimed(next);
     addRewards({ coins: b.coins, diamonds: b.gems });
     playCoinCollectSound({ pitch: 0 });
+    showCongrats({ kind: "reward", title: `${b.title} unlocked`, coins: b.coins, diamonds: b.gems });
   }
 
   function resetAll() {
@@ -133,7 +135,7 @@ export default function ProfilePage() {
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-                <span className="text-xl leading-none">‹</span>
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Profile</span>
               </Link>
               <div className="flex items-center gap-1.5">
@@ -311,9 +313,9 @@ export default function ProfilePage() {
                     return (
                       <div
                         key={b.title}
-                        className={`rounded-xl border px-1 py-2 text-center ${b.done ? "border-yellow-300/40 bg-[#3a2a06]/50" : "border-white/8 bg-[#031a2a]/70"}`}
+                        className={`relative overflow-hidden rounded-2xl border px-2 py-2.5 text-center transition ${b.done ? "border-yellow-300/35 bg-[linear-gradient(180deg,rgba(83,59,8,.72),rgba(25,25,24,.72))] shadow-[inset_0_1px_0_rgba(255,255,255,.05)]" : "border-white/8 bg-[#031a2a]/76"}`}
                       >
-                        <Icon tone={b.tone} className={`mx-auto h-7 w-7 ${b.done ? "" : "opacity-35 grayscale"}`} />
+                        <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border ${b.done ? "border-yellow-200/35 bg-yellow-300/10 shadow-[0_0_18px_rgba(255,194,26,.10)]" : "border-white/8 bg-white/[.025]"}`}><Icon tone={b.tone} className={`h-7 w-7 ${b.done ? "" : "opacity-30 grayscale"}`} /></div>
                         <div className="mt-0.5 text-[10px] font-black leading-tight">{b.title}</div>
                         <div className="mt-0.5 text-[10px] leading-tight text-white/40">{b.hint}</div>
                         <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-black text-yellow-200">
@@ -357,7 +359,7 @@ export default function ProfilePage() {
                         className={`flex items-center justify-between rounded-xl border px-3 py-1.5 text-[10px] font-black ${current ? "border-yellow-300/50 bg-[#3a2a06]/50" : "border-white/8"} ${reached ? "" : "opacity-45"}`}
                       >
                         <span style={{ color: l.color }}>{l.name}</span>
-                        <span className="text-white/50">{reached ? (current ? "Current" : "✓") : `${l.min.toLocaleString()} pts`}</span>
+                        <span className="flex items-center gap-1 text-white/50">{reached ? (current ? <><ShieldCheck className="h-3 w-3 text-yellow-300" /> Current</> : <Check className="h-3.5 w-3.5 text-emerald-300" />) : `${l.min.toLocaleString()} pts`}</span>
                       </div>
                     );
                   })}

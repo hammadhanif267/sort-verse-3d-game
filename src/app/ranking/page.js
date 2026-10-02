@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { ChevronLeft, Pencil, TrendingDown, TrendingUp } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { getLeague, useRanking, REWARD_TIERS } from "@/lib/ranking";
 import { Avatar, LeagueChip } from "@/components/RankBits";
 import { playCoinCollectSound } from "@/lib/sound";
+import { showCongrats } from "@/components/CongratsToast";
 import { CalendarIcon, ChartIcon, CrownIcon, FlagIcon, HomeCoinIcon, HomeGemIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const TABS = [
@@ -46,27 +47,18 @@ function Podium({ top }) {
 }
 
 function Row({ e }) {
-  return (
-    <div
-      className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 ${
-        e.you ? "border-yellow-300/50 bg-[#3a2a06]/60" : "border-white/5 bg-[#04182a]/80"
-      }`}
-    >
+  const content = (
+    <div className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 transition ${e.you ? "border-yellow-300/50 bg-[#3a2a06]/60" : "border-white/5 bg-[#04182a]/80 hover:border-cyan-300/20"}`}>
       <span className="w-6 text-center text-[11px] font-black text-white/50">{e.rank}</span>
       <Avatar name={e.name} you={e.you} avatar={e.avatar} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[11px] font-black">
-          {e.name}
-          {e.you && <span className="ml-1 text-yellow-300">(You)</span>}
-        </div>
+        <div className="truncate text-[11px] font-black">{e.name}{e.you && <span className="ml-1 text-yellow-300">(You)</span>}</div>
         <LeagueChip score={e.score} />
       </div>
-      <div className="text-right">
-        <div className="text-[12px] font-black text-cyan-200">{e.value.toLocaleString()}</div>
-        <div className="text-[10px] font-bold uppercase text-white/30">pts</div>
-      </div>
+      <div className="text-right"><div className="text-[12px] font-black text-cyan-200">{e.value.toLocaleString()}</div><div className="text-[10px] font-bold uppercase text-white/30">pts</div></div>
     </div>
   );
+  return e.you ? content : <Link href={`/profile/${encodeURIComponent(e.id)}`}>{content}</Link>;
 }
 
 export default function RankingPage() {
@@ -108,15 +100,9 @@ export default function RankingPage() {
     addRewards({ coins: lastWeek.reward.coins, diamonds: lastWeek.reward.gems });
     markClaimed();
     playCoinCollectSound({ pitch: 0 });
+    showCongrats({ kind: "reward", title: "Weekly ranking reward claimed", coins: lastWeek.reward.coins, diamonds: lastWeek.reward.gems });
   }
 
-  // Dev only: pretend last week just ended so the "Last week" card + Claim can be tested.
-  function simulateRollover() {
-    try {
-      window.localStorage.setItem("sortverse-ranking-week", JSON.stringify({ week: "2000-1-3", base: Math.max(0, score - 800) }));
-    } catch {}
-    window.dispatchEvent(new Event("sortverse-progress"));
-  }
 
   function saveName() {
     setName(draft);
@@ -137,7 +123,7 @@ export default function RankingPage() {
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-                <span className="text-xl leading-none">‹</span>
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Ranking</span>
               </Link>
               <div className="flex items-center gap-1.5">
@@ -152,7 +138,7 @@ export default function RankingPage() {
               </div>
             </header>
 
-            <section className="relative z-10 min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <section className="game-scroll relative z-10 min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {/* Player / league card */}
               <div className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center gap-3">
@@ -187,7 +173,7 @@ export default function RankingPage() {
                       </span>
                       {delta !== 0 && (
                         <span className={`text-[10px] font-black ${delta > 0 ? "text-emerald-300" : "text-red-400"}`}>
-                          {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}
+                          {delta > 0 ? <TrendingUp className="inline h-3 w-3" /> : <TrendingDown className="inline h-3 w-3" />} {Math.abs(delta)}
                         </span>
                       )}
                     </div>
@@ -210,7 +196,7 @@ export default function RankingPage() {
                   {[
                     [StarIcon, "Stars", data ? data.stars : 0],
                     [FlagIcon, "Cleared", data ? data.cleared : 0],
-                    [ChartIcon, "This week", me && boards ? boards.weekly.find((e) => e.you).value : 0],
+                    [ChartIcon, "This week", me && boards ? (boards.weekly.find((e) => e.you)?.value ?? 0) : 0],
                   ].map(([Icon, label, value]) => (
                     <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 py-1.5 text-center">
                       <div className="flex items-center justify-center gap-1 text-[13px] font-black">
@@ -302,30 +288,25 @@ export default function RankingPage() {
                 <p className="py-10 text-center text-[11px] text-white/40">Loading leaderboard…</p>
               ) : (
                 <>
-                  <Podium top={board.slice(0, 3)} />
-                  <div className="mt-2 space-y-1.5 pb-2">
-                    {listed.map((e) => (
-                      <Row key={e.id} e={e} />
-                    ))}
-                    {meOutside && (
-                      <>
-                        <div className="py-0.5 text-center text-[10px] font-black tracking-[0.4em] text-white/30">•••</div>
-                        <Row e={me} />
-                      </>
-                    )}
-                  </div>
-                  <p className="px-2 pb-1 text-center text-[10px] leading-relaxed text-white/30">
-                    Rivals are simulated until an online leaderboard is connected. Your score is real: stars, cleared levels and daily streak.
-                  </p>
-                  {process.env.NODE_ENV !== "production" && (
-                    <button
-                      type="button"
-                      onClick={simulateRollover}
-                      className="mx-auto mb-2 block rounded-full border border-white/15 px-3 py-1 text-[10px] font-bold text-white/50"
-                    >
-                      Dev: simulate week rollover
-                    </button>
+                  {board.length === 0 ? (
+                    <div className="mt-4 rounded-2xl border border-white/8 bg-[#04182a]/70 px-4 py-7 text-center">
+                      <div className="text-sm font-black">No ranked players yet</div>
+                      <div className="mt-1 text-[10px] leading-relaxed text-white/40">Only real synced players appear here. This board fills as people actually play.</div>
+                    </div>
+                  ) : board.length < 3 ? (
+                    <div className="mt-3 space-y-1.5">{board.map((e) => <Row key={e.id} e={e} />)}</div>
+                  ) : (
+                    <>
+                      <Podium top={board.slice(0, 3)} />
+                      <div className="mt-2 space-y-1.5 pb-2">
+                        {listed.map((e) => <Row key={e.id} e={e} />)}
+                        {meOutside && <><div className="py-0.5 text-center text-[10px] font-black tracking-[0.4em] text-white/30">•••</div><Row e={me} /></>}
+                      </div>
+                    </>
                   )}
+                  <p className="px-2 pb-1 pt-2 text-center text-[10px] leading-relaxed text-white/30">
+                    Live board · only actual synced player profiles and earned progress are listed.
+                  </p>
                 </>
               )}
             </section>
