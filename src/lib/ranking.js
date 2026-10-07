@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getLiveBoards, getLiveIdentity, syncLivePlayer } from "@/lib/livePlayer";
 
 const LEVEL_COUNT = 12;
 const MULT = { normal: 1, hard: 1.5, expert: 2 };
 const K = { avatar: "sortverse-player-avatar", name: "sortverse-player-name" };
+const WEEK_BASELINE_KEY = "sortverse-week-score-baseline";
+const WEEK_KEY_STORAGE = "sortverse-week-key";
+export const GAME_RECORDS_KEY = "sortverse-game-records";
 
 export const LEAGUES = [
   { name: "Bronze", min: 0, color: "#cd7f32" },
@@ -28,6 +30,55 @@ export function getLeague(score) {
 function read(key, fallback) {
   if (typeof window === "undefined") return fallback;
   try { const v = window.localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
+}
+
+
+export function readGameRecords() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(GAME_RECORDS_KEY);
+    const value = raw ? JSON.parse(raw) : [];
+    return Array.isArray(value) ? value.filter(Boolean) : [];
+  } catch { return []; }
+}
+
+function dateKey(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+export function computePerformance(records = []) {
+  const clean = [...records].filter((r) => Number.isFinite(Number(r?.score)) && r?.completedAt).sort((a,b) => Number(a.completedAt) - Number(b.completedAt));
+  const scores = clean.map((r) => Number(r.score) || 0);
+  const gamesPlayed = clean.length;
+  const bestScore = scores.length ? Math.max(...scores) : 0;
+  const averageScore = gamesPlayed ? Math.round(scores.reduce((a,b)=>a+b,0) / gamesPlayed) : 0;
+  const uniqueDays = [...new Set(clean.map((r) => dateKey(Number(r.completedAt))))];
+  const daySet = new Set(uniqueDays);
+  let bestStreak = 0;
+  let run = 0;
+  let previous = null;
+  for (const key of uniqueDays) {
+    const cur = new Date(`${key}T00:00:00`);
+    if (previous && Math.round((cur - previous) / 86400000) === 1) run += 1; else run = 1;
+    bestStreak = Math.max(bestStreak, run);
+    previous = cur;
+  }
+  let currentStreak = 0;
+  if (uniqueDays.length) {
+    let cursor = new Date(); cursor.setHours(0,0,0,0);
+    const today = dateKey(cursor.getTime());
+    const yesterday = dateKey(cursor.getTime() - 86400000);
+    let key = daySet.has(today) ? today : daySet.has(yesterday) ? yesterday : null;
+    if (key) {
+      while (daySet.has(key)) {
+        currentStreak += 1;
+        const d = new Date(`${key}T00:00:00`); d.setDate(d.getDate()-1); key = dateKey(d.getTime());
+      }
+    }
+  }
+  const topScores = [...clean].sort((a,b) => Number(b.score)-Number(a.score) || Number(b.completedAt)-Number(a.completedAt)).slice(0,10);
+  return { gamesPlayed, bestScore, averageScore, bestStreak, currentStreak, topScores };
 }
 
 export function computeScore(stars, daily) {
@@ -53,7 +104,18 @@ export function weekInfo(d = new Date()) {
   return { key: `${start.getFullYear()}-${start.getMonth()+1}-${start.getDate()}`, endMs: end.getTime(), dow };
 }
 
-export function touchWeekBaseline() { return 0; }
+function computeWeeklyRealScore(records, daily) {
+  const now = new Date();
+  const info = weekInfo(now);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - info.dow);
+  const startMs = start.getTime();
+  const levelPoints = (records || []).reduce((sum, r) => sum + (Number(r?.completedAt) >= startMs ? Number(r?.score) || 0 : 0), 0);
+  const dailyPoints = Object.keys(daily || {}).filter((key) => {
+    const d = new Date(`${key}T00:00:00`);
+    return Number.isFinite(d.getTime()) && d.getTime() >= startMs && d.getTime() < info.endMs;
+  }).length * 25;
+  return levelPoints + dailyPoints;
+}
 
 export const REWARD_TIERS = [
   { max: 1, label: "#1", coins: 500, gems: 10 },
@@ -61,58 +123,89 @@ export const REWARD_TIERS = [
   { max: 10, label: "Top 10", coins: 150, gems: 3 },
   { max: 25, label: "Top 25", coins: 75, gems: 1 },
 ];
+
 export function rewardFor(rank, pts) {
+  if (!Number.isFinite(Number(rank)) || Number(rank) < 1) return null;
   const t = REWARD_TIERS.find((x) => rank <= x.max);
   if (t) return { coins: t.coins, gems: t.gems, label: t.label };
   return pts > 0 ? { coins: 25, gems: 0, label: "Participant" } : null;
 }
 
-function markYou(list, id) { return (list || []).map((e) => ({ ...e, you: e.id === id })); }
+export function touchWeekBaseline() {
+  if (typeof window === "undefined") return null;
+  const score = computeScore(
+    read("sortverse-level-stars", {}),
+    read("sortverse-daily-completed", {})
+  ).score;
+  return ensureWeekBaseline(score);
+}
+
+function ensureWeekBaseline(score) {
+  const info = weekInfo();
+  const savedKey = window.localStorage.getItem(WEEK_KEY_STORAGE);
+  let baseline = Number(window.localStorage.getItem(WEEK_BASELINE_KEY));
+  if (savedKey !== info.key || !Number.isFinite(baseline)) {
+    baseline = score;
+    window.localStorage.setItem(WEEK_KEY_STORAGE, info.key);
+    window.localStorage.setItem(WEEK_BASELINE_KEY, String(score));
+  }
+  return { ...info, baseline, weekly: Math.max(0, score - baseline) };
+}
+
+function localEntry(stats, profile, value, id = "local-player") {
+  // Offline mode has only one real player on this device. Never label that
+  // player as a fake global #1; a global rank requires shared online data.
+  return {
+    id, name: profile.name, avatar: profile.avatar, score: stats.score, weekly: value,
+    cleared: stats.cleared, stars: stats.stars, byDiff: stats.byDiff, dailyDays: stats.dailyDays,
+    value, rank: null, you: true,
+  };
+}
 
 export function useRanking() {
-  const [remote, setRemote] = useState(null);
-  const [profile, setProfile] = useState(() => ({ name: "Player", avatar: null }));
-  const [online, setOnline] = useState(true);
+  const [profile, setProfile] = useState({ name: "Player", avatar: null });
+  const [stats, setStats] = useState({ score: 0, cleared: 0, stars: 0, byDiff: { normal: 0, hard: 0, expert: 0 }, dailyDays: 0 });
+  const [week, setWeek] = useState(null);
+  const [tick, setTick] = useState(0);
+  const [records, setRecords] = useState([]);
 
   useEffect(() => {
-    setProfile({ name: read(K.name, "Player"), avatar: read(K.avatar, null) });
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    let timer;
-    const refresh = async () => {
-      try {
-        const local = { name: read(K.name, "Player"), avatar: read(K.avatar, null) };
-        await syncLivePlayer(local);
-        const b = await getLiveBoards();
-        if (alive) { setRemote(b); setOnline(true); }
-      } catch {
-        if (alive) setOnline(false);
-      }
+    const sync = () => {
+      const nextStats = computeScore(read("sortverse-level-stars", {}), read("sortverse-daily-completed", {}));
+      setStats(nextStats);
+      setProfile({ name: read(K.name, "Player"), avatar: read(K.avatar, null) });
+      const nextRecords = readGameRecords();
+      const nextDaily = read("sortverse-daily-completed", {});
+      setWeek({ ...weekInfo(), baseline: Math.max(0, nextStats.score - computeWeeklyRealScore(nextRecords, nextDaily)), weekly: computeWeeklyRealScore(nextRecords, nextDaily) });
+      setRecords(nextRecords);
+      setTick((v) => v + 1);
     };
-    refresh();
-    timer = window.setInterval(refresh, 5000);
-    const onProgress = () => refresh();
-    window.addEventListener("sortverse-progress", onProgress);
-    window.addEventListener("sortverse-profile", onProgress);
-    window.addEventListener("focus", onProgress);
+    sync();
+    const timer = window.setInterval(sync, 1000);
+    window.addEventListener("sortverse-progress", sync);
+    window.addEventListener("sortverse-profile", sync);
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
     return () => {
-      alive = false; window.clearInterval(timer);
-      window.removeEventListener("sortverse-progress", onProgress);
-      window.removeEventListener("sortverse-profile", onProgress);
-      window.removeEventListener("focus", onProgress);
+      window.clearInterval(timer);
+      window.removeEventListener("sortverse-progress", sync);
+      window.removeEventListener("sortverse-profile", sync);
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
     };
   }, []);
 
-  const identity = typeof window !== "undefined" ? getLiveIdentity() : null;
-  const localStats = computeScore(read("sortverse-level-stars", {}), read("sortverse-daily-completed", {}));
-  const data = useMemo(() => ({ ...localStats, name: profile.name, avatar: profile.avatar, week: weekInfo(), lastWeek: null, online }), [localStats.score, localStats.cleared, localStats.stars, localStats.dailyDays, profile, online]);
+  const data = useMemo(() => ({
+    ...stats, name: profile.name, avatar: profile.avatar, week: week || weekInfo(), lastWeek: null, online: false, performance: computePerformance(records),
+  }), [stats, profile, week, records, tick]);
+
   const boards = useMemo(() => {
-    if (!remote) return null;
-    const id = identity?.id;
-    return { global: markYou(remote.global, id), weekly: markYou(remote.weekly, id), friends: markYou(remote.friends, id) };
-  }, [remote, identity?.id]);
+    if (!week) return null;
+    const global = [localEntry(stats, profile, stats.score)];
+    const weekly = [localEntry(stats, profile, week.weekly)];
+    const friends = [localEntry(stats, profile, stats.score)];
+    return { global, weekly, friends };
+  }, [stats, profile, week]);
 
   function setName(raw) {
     const name = raw.trim().slice(0, 20) || "Player";
@@ -120,14 +213,17 @@ export function useRanking() {
     setProfile((p) => ({ ...p, name }));
     window.dispatchEvent(new Event("sortverse-profile"));
   }
+
   function setAvatar(next) {
-    const avatar = next && (next.photo || next.builder || next.hue !== undefined) ? { photo: next.photo || null, builder: next.builder || null, hue: next.hue } : null;
+    const avatar = next && (next.photo || next.sourcePhoto || next.builder || next.hue !== undefined)
+      ? { photo: next.photo || null, sourcePhoto: next.sourcePhoto || null, source: next.source || null, builder: next.builder || null, hue: next.hue }
+      : null;
     if (avatar) window.localStorage.setItem(K.avatar, JSON.stringify(avatar)); else window.localStorage.removeItem(K.avatar);
     setProfile((p) => ({ ...p, avatar }));
     window.dispatchEvent(new Event("sortverse-profile"));
   }
 
-  return { ready: Boolean(remote), data, boards, lastRank: null, setName, setAvatar, markClaimed: () => {}, online };
+  return { ready: Boolean(week && boards), data, boards, lastRank: null, setName, setAvatar, markClaimed: () => {}, online: false };
 }
 
 export function usePlayerProfile() {

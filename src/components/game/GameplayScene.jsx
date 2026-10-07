@@ -587,8 +587,18 @@ export default function GameplayScene({
 
     const entryId = `${difficulty}-${level}`;
 
-    progress[difficulty] = Math.max(Number(progress[difficulty]) || 0, level);
     stars[entryId] = Math.max(Number(stars[entryId]) || 0, earnedStars);
+
+    // Progress is the highest contiguous level actually cleared. This keeps
+    // the normal game flow honest even if someone manually opens a later
+    // gameplay URL: clearing Level 5 cannot unlock Level 6 while Levels 1-4
+    // are still incomplete.
+    let contiguous = 0;
+    for (let i = 1; i <= 12; i += 1) {
+      if ((Number(stars[`${difficulty}-${i}`]) || 0) > 0) contiguous = i;
+      else break;
+    }
+    progress[difficulty] = contiguous;
     rewards[entryId] = {
       coins: Math.max(Number(rewards[entryId]?.coins) || 0, coinReward),
       diamonds: Math.max(Number(rewards[entryId]?.diamonds) || 0, diamondReward),
@@ -598,8 +608,25 @@ export default function GameplayScene({
     window.localStorage.setItem(starsKey, JSON.stringify(stars));
     window.localStorage.setItem(rewardsKey, JSON.stringify(rewards));
 
+    // Keep a genuine local game history. Ranking/Stats read this log; no
+    // fake records or remote database are involved. One record is stored
+    // per actually completed level, and replaying a level creates another
+    // real performance record.
+    try {
+      const recordKey = "sortverse-game-records";
+      const records = JSON.parse(window.localStorage.getItem(recordKey) || "[]");
+      const multiplier = difficulty === "expert" ? 2 : difficulty === "hard" ? 1.5 : 1;
+      const recordScore = Math.round((earnedStars * 100 + 50) * multiplier);
+      records.push({
+        id: `${Date.now()}-${difficulty}-${level}`,
+        level, difficulty, stars: earnedStars, moves, score: recordScore,
+        coins: coinReward, diamonds: diamondReward, completedAt: Date.now(),
+      });
+      window.localStorage.setItem(recordKey, JSON.stringify(records.slice(-200)));
+    } catch {}
+
     if (difficulty === "normal") {
-      completeLevel({ coins: coinReward, diamonds: diamondReward });
+      completeLevel({ level, coins: coinReward, diamonds: diamondReward });
     } else {
       addRewards({ coins: coinReward, diamonds: diamondReward });
     }

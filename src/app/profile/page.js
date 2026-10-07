@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Check, ChevronLeft, Pencil, ShieldCheck } from "lucide-react";
+import { Camera, Check, ChevronLeft, Pencil, ShieldCheck, Video, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import { AVATAR_BGS, AVATAR_COLORS, AVATAR_SHAPES, Avatar, GameAvatarArt } from "@/components/RankBits";
+import { AVATAR_BGS, AVATAR_COLORS, AVATAR_FACES, AVATAR_SHAPES, AVATAR_GENDERS, AVATAR_HAIRS, AVATAR_OUTFITS, AVATAR_ACCESSORIES, AVATAR_SKINS, Avatar, GameAvatarArt, STYLE_LABELS, inferAvatarGender } from "@/components/RankBits";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { LEAGUES, getLeague, useRanking } from "@/lib/ranking";
@@ -14,7 +14,7 @@ import { CrownIcon, FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, S
 
 const CLAIM_KEY = "sortverse-achievements-claimed";
 
-const DEFAULT_BUILDER = { shape: "sphere", color: "blue", bg: 0 };
+const EMPTY_BUILDER = { shape: null, color: null, bg: null, face: null, gender: null, hair: null, outfit: null, accessory: null, skin: null };
 
 const DIFFS = [
   ["normal", "Normal", "#4ee08a"],
@@ -31,18 +31,53 @@ export default function ProfilePage() {
       setClaimed(JSON.parse(window.localStorage.getItem(CLAIM_KEY) || "{}"));
     } catch {}
   }, []);
-  const { ready, data, boards, setName, setAvatar } = useRanking();
+  const { ready, data, setName, setAvatar } = useRanking();
   const fileRef = useRef(null);
   const [photoError, setPhotoError] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   useBackgroundMusic("menu");
+
+  useEffect(() => {
+    if (!cameraOpen) return undefined;
+    let cancelled = false;
+    async function startCamera() {
+      setCameraError("");
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera is not supported by this browser.");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        setCameraError(err?.name === "NotAllowedError" ? "Camera permission was denied. Please allow camera access and try again." : (err?.message || "Could not start the camera."));
+      }
+    }
+    startCamera();
+    return () => {
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [cameraOpen]);
 
   const score = data ? data.score : 0;
   const name = data ? data.name : "You";
   const league = getLeague(score);
   const byDiff = data ? data.byDiff : { normal: 0, hard: 0, expert: 0 };
-  const rank = boards ? boards.global.find((e) => e.you).rank : null;
 
   const cleared = data?.cleared ?? 0;
   const stars = data?.stars ?? 0;
@@ -55,7 +90,7 @@ export default function ProfilePage() {
     { Icon: MedalIcon, tone: "red", title: "Expert Master", hint: "Clear all Expert", done: byDiff.expert >= 12, coins: 400, gems: 6 },
     { Icon: FlameIcon, title: "Committed", hint: "7 daily challenges", done: (data?.dailyDays ?? 0) >= 7, coins: 100, gems: 2 },
     { Icon: TrophyGoldIcon, title: "Gold League", hint: "Reach 4,000 pts", done: score >= 4000, coins: 200, gems: 3 },
-    { Icon: CrownIcon, title: "Top 10", hint: "Global top 10", done: rank !== null && rank <= 10, coins: 300, gems: 5 },
+    { Icon: CrownIcon, title: "Top 10", hint: "Online global top 10", done: false, coins: 300, gems: 5 },
   ];
 
   function claim(b) {
@@ -81,15 +116,75 @@ export default function ProfilePage() {
   const unlocked = badges.filter((b) => b.done).length;
 
   const avatar = data ? data.avatar : null;
+  const autoGender = inferAvatarGender(name);
   const [builderDraft, setBuilderDraft] = useState(null);
-  const d = builderDraft || avatar?.builder || DEFAULT_BUILDER;
+  const baseBuilder = avatar?.builder || EMPTY_BUILDER;
+  const d = builderDraft || baseBuilder;
   const pick = (patch) => setBuilderDraft({ ...d, ...patch });
+
+  useEffect(() => {
+    if (!data || !avatar?.builder || avatar?.photo) return;
+    const nextGender = inferAvatarGender(name);
+    if (avatar.builder.gender && avatar.builder.gender !== nextGender) {
+      setAvatar({ builder: { ...avatar.builder, gender: nextGender } });
+    }
+  }, [name]);
   function applyAvatar() {
-    setAvatar({ builder: d });
+    if (!d.gender) return;
+    setAvatar({
+      builder: {
+        shape: d.shape || "hero",
+        color: d.color || "blue",
+        bg: d.bg ?? 0,
+        face: d.face || "happy",
+        gender: d.gender,
+        hair: d.hair || "short",
+        outfit: d.outfit || "hoodie",
+        accessory: d.accessory || "none",
+        skin: d.skin || "fair",
+      },
+    });
     setBuilderDraft(null);
   }
 
   // Crops the picked image to a centred square and shrinks it to 128px so it stays tiny in storage.
+  function openCamera() {
+    setPhotoError("");
+    setCameraError("");
+    setCameraOpen(true);
+  }
+
+  function closeCamera() {
+    setCameraOpen(false);
+  }
+
+  function captureSelfie() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      setCameraError("Camera is still starting. Please try again in a moment.");
+      return;
+    }
+    const size = 320;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    const side = Math.min(video.videoWidth, video.videoHeight);
+    const sx = (video.videoWidth - side) / 2;
+    const sy = (video.videoHeight - side) / 2;
+    ctx.save();
+    ctx.translate(size, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+    ctx.restore();
+    const photo = canvas.toDataURL("image/jpeg", 0.86);
+    const selfieBuilder = { ...d, gender: autoGender };
+    setAvatar({ builder: selfieBuilder, sourcePhoto: photo, source: "selfie" });
+    setBuilderDraft(selfieBuilder);
+    setPhotoError("");
+    setCameraOpen(false);
+  }
+
   function onPick(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -167,6 +262,9 @@ export default function ProfilePage() {
                   <button type="button" onClick={() => fileRef.current?.click()} className="text-cyan-200">
                     Upload photo
                   </button>
+                  <button type="button" onClick={openCamera} className="inline-flex items-center gap-1 text-yellow-200">
+                    <Camera className="h-3 w-3" /> Selfie Avatar
+                  </button>
                   {avatar && (
                     <button type="button" onClick={() => setAvatar(null)} className="text-white/45">
                       Reset avatar
@@ -201,7 +299,7 @@ export default function ProfilePage() {
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {[
                     ["Score", score.toLocaleString()],
-                    ["Global", rank ? `#${rank}` : "–"],
+                    ["Levels", data ? data.cleared : 0],
                     ["Stars", data ? data.stars : 0],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 py-2">
@@ -212,26 +310,28 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Create avatar from the game's own objects */}
+              {/* Create a polished in-game avatar */}
               <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Create Avatar</div>
-                <div className="mt-2.5 flex items-center gap-3">
-                  <div className="shrink-0 overflow-hidden rounded-full ring-2 ring-yellow-300/60">
-                    <GameAvatarArt {...d} size={76} />
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Avatar Studio</div>
+                <div className="mt-0.5 text-[10px] text-white/35">Create your character, dress them, and make the look yours</div>
+                <div className="mt-2.5 flex items-start gap-3">
+                  <div className="shrink-0 overflow-hidden rounded-[22px] border border-yellow-300/35 bg-black/20 p-1 shadow-[0_12px_35px_rgba(0,0,0,.25)]">
+                    <GameAvatarArt {...d} size={118} />
                   </div>
                   <div className="min-w-0 flex-1 space-y-2">
                     <div>
-                      <div className="text-[10px] font-bold text-white/40">Object</div>
+                      <div className="text-[10px] font-bold text-white/40">Style</div>
                       <div className="mt-1 flex gap-1.5">
                         {AVATAR_SHAPES.map((sh) => (
                           <button
                             key={sh}
                             type="button"
-                            aria-label={sh}
+                            aria-label={STYLE_LABELS[sh] || sh}
                             onClick={() => pick({ shape: sh })}
                             className={`overflow-hidden rounded-xl border-2 ${d.shape === sh ? "border-yellow-300" : "border-white/10"}`}
                           >
-                            <GameAvatarArt shape={sh} color={d.color} bg={d.bg} size={34} />
+                            <GameAvatarArt shape={sh} color={d.color} bg={d.bg} face={d.face} size={34} />
+                            <span className="block px-1 pb-1 text-[7px] font-black uppercase text-white/50">{STYLE_LABELS[sh]}</span>
                           </button>
                         ))}
                       </div>
@@ -252,7 +352,23 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold text-white/40">Background</div>
+                      <div className="text-[10px] font-bold text-white/40">Expression</div>
+                      <div className="mt-1 flex gap-1.5">
+                        {AVATAR_FACES.map((face) => (
+                          <button
+                            key={face}
+                            type="button"
+                            aria-label={`${face} face`}
+                            onClick={() => pick({ face })}
+                            className={`h-7 min-w-7 rounded-full border px-1.5 text-[9px] font-black transition ${d.face === face ? "border-yellow-300 bg-yellow-300/15 text-yellow-100" : "border-white/10 bg-white/[.03] text-white/55"}`}
+                          >
+                            {face === "happy" ? "Smile" : face === "cool" ? "Cool" : face === "excited" ? "Joy" : "Focus"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-white/40">Theme</div>
                       <div className="mt-1 flex gap-1.5">
                         {AVATAR_BGS.map((pair, i) => (
                           <button
@@ -268,9 +384,48 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
+                <div className="mt-3 rounded-2xl border border-white/8 bg-black/15 p-2.5">
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-yellow-200/80">Character & Wardrobe</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-[9px] font-bold text-white/40">Character</div>
+                      <div className="mt-1 grid grid-cols-2 gap-1">
+                        {AVATAR_GENDERS.map((g) => <button key={g} type="button" onClick={() => pick({ gender: g })} className={`h-7 rounded-lg border text-[9px] font-black ${d.gender === g ? "border-yellow-300 bg-yellow-300/15 text-yellow-100" : "border-white/10 text-white/55"}`}>{g === "girl" ? "Girl" : "Boy"}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold text-white/40">Hair</div>
+                      <select value={d.hair || ""} onChange={(e) => pick({ hair: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
+                        <option value="" disabled>Select hair</option>
+                        {AVATAR_HAIRS.map((h) => <option key={h} value={h}>{h[0].toUpperCase()+h.slice(1)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold text-white/40">Outfit</div>
+                      <select value={d.outfit || ""} onChange={(e) => pick({ outfit: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
+                        {AVATAR_OUTFITS.map((o) => <option key={o} value={o}>{o === "tee" ? "T-Shirt" : o[0].toUpperCase()+o.slice(1)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold text-white/40">Accessory</div>
+                      <select value={d.accessory || ""} onChange={(e) => pick({ accessory: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
+                        <option value="" disabled>Select accessory</option>
+                        {AVATAR_ACCESSORIES.map((a) => <option key={a} value={a}>{a === "none" ? "None" : a[0].toUpperCase()+a.slice(1)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-[9px] font-bold text-white/40">Skin Tone</div>
+                    <div className="mt-1 flex gap-1.5">
+                      {AVATAR_SKINS.map((sk) => <button key={sk} type="button" onClick={() => pick({ skin: sk })} aria-label={sk} className="h-6 w-6 rounded-full border-2" style={{ background: sk === "fair" ? "#ffe0c2" : sk === "warm" ? "#f4c095" : sk === "tan" ? "#c98257" : "#7a4935", borderColor: d.skin === sk ? "#ffd21a" : "rgba(255,255,255,.15)" }} />)}
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={applyAvatar}
+                  disabled={!d.gender}
                   className="mt-3 h-10 w-full rounded-full border border-yellow-300/60 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] text-[12px] font-black text-[#241300] transition active:scale-[0.98]"
                 >
                   Use this avatar
@@ -383,6 +538,32 @@ export default function ProfilePage() {
                 {ready ? "View Ranking" : "Loading…"}
               </Link>
             </section>
+
+            {cameraOpen && (
+              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-[410px] overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
+                  <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-black">Create Selfie Avatar</div>
+                      <div className="text-[10px] text-white/40">Center your face for the best game portrait.</div>
+                    </div>
+                    <button type="button" onClick={closeCamera} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10" aria-label="Close camera">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="p-4">
+                    <div className="relative aspect-square overflow-hidden rounded-3xl border border-cyan-300/20 bg-black">
+                      <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+                      <div className="pointer-events-none absolute inset-8 rounded-full border-2 border-yellow-300/70 shadow-[0_0_35px_rgba(255,210,26,.18)]" />
+                    </div>
+                    {cameraError && <div className="mt-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-[10px] font-bold text-red-200">{cameraError}</div>}
+                    <button type="button" onClick={captureSelfie} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-[#ffd21a] to-[#ff8500] text-sm font-black text-[#241300] active:scale-[.98]">
+                      <Video className="h-4 w-4" /> Take Selfie
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <BottomNav active="profile" />
           </div>

@@ -99,9 +99,12 @@ export function usePlayerStats() {
     });
   }
 
-  function completeLevel({ coins = 0, diamonds = 0 } = {}) {
+  function completeLevel({ level = null, coins = 0, diamonds = 0 } = {}) {
+    const nextLevel = Number.isFinite(Number(level))
+      ? Math.max(stats.level, Number(level))
+      : stats.level + 1;
     persist({
-      level: stats.level + 1,
+      level: nextLevel,
       coins: stats.coins + coins,
       diamonds: stats.diamonds + diamonds,
     });

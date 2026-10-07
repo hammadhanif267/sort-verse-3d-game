@@ -1,108 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Pencil, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, ChevronLeft, Flame, Gamepad2, Pencil } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
-import { getLeague, useRanking, REWARD_TIERS } from "@/lib/ranking";
-import { Avatar, LeagueChip } from "@/components/RankBits";
-import { playCoinCollectSound } from "@/lib/sound";
-import { showCongrats } from "@/components/CongratsToast";
-import { CalendarIcon, ChartIcon, CrownIcon, FlagIcon, HomeCoinIcon, HomeGemIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
+import { getLeague, useRanking } from "@/lib/ranking";
+import { Avatar } from "@/components/RankBits";
+import { ChartIcon, FlagIcon, HomeCoinIcon, HomeGemIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const TABS = [
-  ["global", "Global"],
-  ["weekly", "Weekly"],
-  ["friends", "Friends"],
+  ["scores", "Top Scores"],
+  ["streak", "Streak"],
+  ["stats", "Stats"],
 ];
-const LIST_LIMIT = 25;
-
-function Podium({ top }) {
-  if (top.length < 3) return null;
-  const cols = [
-    { e: top[1], h: 50, c: "#c9d4df", s: 40 },
-    { e: top[0], h: 72, c: "#ffc21a", s: 50 },
-    { e: top[2], h: 38, c: "#cd7f32", s: 40 },
-  ];
-  return (
-    <div className="mt-3 grid grid-cols-3 items-end gap-2">
-      {cols.map(({ e, h, c, s }) => (
-        <div key={e.id} className="flex min-w-0 flex-col items-center">
-          {e.rank === 1 && <CrownIcon className="-mb-1 h-5 w-5 text-yellow-300" />}
-          <Avatar name={e.name} you={e.you} size={s} avatar={e.avatar} />
-          <div className="mt-1 w-full truncate text-center text-[10px] font-black">{e.name}</div>
-          <div className="text-[10px] font-bold text-cyan-200">{e.value.toLocaleString()}</div>
-          <div
-            className="mt-1 flex w-full items-start justify-center rounded-t-xl border border-b-0 pt-1 text-sm font-black"
-            style={{ height: h, color: c, borderColor: `${c}66`, background: `linear-gradient(180deg,${c}30,transparent)` }}
-          >
-            {e.rank}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Row({ e }) {
-  const content = (
-    <div className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 transition ${e.you ? "border-yellow-300/50 bg-[#3a2a06]/60" : "border-white/5 bg-[#04182a]/80 hover:border-cyan-300/20"}`}>
-      <span className="w-6 text-center text-[11px] font-black text-white/50">{e.rank}</span>
-      <Avatar name={e.name} you={e.you} avatar={e.avatar} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[11px] font-black">{e.name}{e.you && <span className="ml-1 text-yellow-300">(You)</span>}</div>
-        <LeagueChip score={e.score} />
-      </div>
-      <div className="text-right"><div className="text-[12px] font-black text-cyan-200">{e.value.toLocaleString()}</div><div className="text-[10px] font-bold uppercase text-white/30">pts</div></div>
-    </div>
-  );
-  return e.you ? content : <Link href={`/profile/${encodeURIComponent(e.id)}`}>{content}</Link>;
-}
 
 export default function RankingPage() {
-  const { coins, diamonds, addRewards } = usePlayerStats();
-  const { ready, data, boards, lastRank, setName, markClaimed } = useRanking();
-  const [tab, setTab] = useState("global");
+  const { coins, diamonds } = usePlayerStats();
+  const { ready, data, setName } = useRanking();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [now, setNow] = useState(() => Date.now());
+  const [performanceTab, setPerformanceTab] = useState("scores");
   useBackgroundMusic("menu");
 
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 30000);
-    return () => window.clearInterval(t);
-  }, []);
-
-  const board = boards ? boards[tab] : [];
-  const me = board.find((e) => e.you);
-  const globalRank = boards ? boards.global.find((e) => e.you).rank : null;
-  const delta = lastRank && globalRank ? lastRank - globalRank : 0;
   const score = data ? data.score : 0;
   const league = getLeague(score);
-  const above = me && me.rank > 1 ? board[me.rank - 2] : null;
-  const gap = above ? above.value - me.value + 1 : 0;
-
-  const msLeft = data ? Math.max(0, data.week.endMs - now) : 0;
-  const d = Math.floor(msLeft / 86400000);
-  const h = Math.floor((msLeft % 86400000) / 3600000);
-  const m = Math.floor((msLeft % 3600000) / 60000);
-
-  const listed = board.slice(3, LIST_LIMIT);
-  const meOutside = me && me.rank > LIST_LIMIT;
-
-  const lastWeek = data ? data.lastWeek : null;
-  const myWeeklyRank = boards ? boards.weekly.find((e) => e.you).rank : null;
-
-  function claimLastWeek() {
-    if (!lastWeek || lastWeek.claimed || !lastWeek.reward) return;
-    addRewards({ coins: lastWeek.reward.coins, diamonds: lastWeek.reward.gems });
-    markClaimed();
-    playCoinCollectSound({ pitch: 0 });
-    showCongrats({ kind: "reward", title: "Weekly ranking reward claimed", coins: lastWeek.reward.coins, diamonds: lastWeek.reward.gems });
-  }
-
 
   function saveName() {
     setName(draft);
@@ -168,19 +91,12 @@ export default function RankingPage() {
                       </button>
                     )}
                     <div className="mt-0.5 flex items-center gap-2">
-                      <span className="text-[11px] font-black" style={{ color: league.color }}>
-                        {league.name} League
-                      </span>
-                      {delta !== 0 && (
-                        <span className={`text-[10px] font-black ${delta > 0 ? "text-emerald-300" : "text-red-400"}`}>
-                          {delta > 0 ? <TrendingUp className="inline h-3 w-3" /> : <TrendingDown className="inline h-3 w-3" />} {Math.abs(delta)}
-                        </span>
-                      )}
+                      <span className="text-[11px] font-black" style={{ color: league.color }}>{league.name} League</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-white/40">Global</div>
-                    <div className="text-xl font-black text-yellow-300">#{globalRank ?? "–"}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-white/40">Best Score</div>
+                    <div className="text-xl font-black text-yellow-300">{score.toLocaleString()}</div>
                   </div>
                 </div>
 
@@ -196,7 +112,7 @@ export default function RankingPage() {
                   {[
                     [StarIcon, "Stars", data ? data.stars : 0],
                     [FlagIcon, "Cleared", data ? data.cleared : 0],
-                    [ChartIcon, "This week", me && boards ? (boards.weekly.find((e) => e.you)?.value ?? 0) : 0],
+                    [ChartIcon, "This week", data?.week?.weekly ?? 0],
                   ].map(([Icon, label, value]) => (
                     <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 py-1.5 text-center">
                       <div className="flex items-center justify-center gap-1 text-[13px] font-black">
@@ -209,125 +125,67 @@ export default function RankingPage() {
                 </div>
               </div>
 
-              {/* Last week's result + claim */}
-              {lastWeek && lastWeek.reward && !lastWeek.claimed && (
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-yellow-300/30 bg-gradient-to-r from-[#3a2a06]/70 to-[#06243a]/70 px-4 py-3">
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-200/80">
-                      Last week: #{lastWeek.rank} · {lastWeek.reward.label}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[10px] font-bold text-white/70">
-                      <span className="inline-flex items-center gap-1">
-                        <HomeCoinIcon className="h-3.5 w-3.5" /> +{lastWeek.reward.coins}
-                      </span>
-                      {lastWeek.reward.gems > 0 && (
-                        <span className="inline-flex items-center gap-1">
-                          <HomeGemIcon className="h-3.5 w-3.5" /> +{lastWeek.reward.gems}
-                        </span>
-                      )}
-                    </div>
+              {/* Personal performance: same real-data concept as a professional
+                  game profile, while keeping Sortverse's existing visual language. */}
+              {ready && data?.performance && (
+                <section className="mt-3 rounded-2xl border border-cyan-300/15 bg-[#04182a]/75 p-3">
+                  <div className="mb-2">
+                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">My Performance</div>
+                    <div className="mt-0.5 text-[10px] text-white/35">Your best runs, streaks and progress</div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={claimLastWeek}
-                    className="h-10 shrink-0 rounded-full border border-yellow-300/60 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] px-5 text-[11px] font-black text-[#241300] transition active:scale-[0.97]"
-                  >
-                    Claim
-                  </button>
-                </div>
+                  {performanceTab === "scores" && (
+                    <div className="mt-2 space-y-1.5">
+                      {data.performance.topScores.length ? data.performance.topScores.map((r, index) => (
+                        <div key={r.id || `${r.completedAt}-${index}`} className="flex items-center gap-2 rounded-xl border border-white/8 bg-[#031a2a]/80 px-2.5 py-2">
+                          <span className="w-5 text-center text-[10px] font-black text-yellow-300">#{index + 1}</span>
+                          <Gamepad2 className="h-4 w-4 text-cyan-300" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-black">Level {r.level} · {String(r.difficulty || "normal").toUpperCase()}</div>
+                            <div className="text-[9px] text-white/40">{r.stars} stars · {r.moves} moves · {new Date(r.completedAt).toLocaleDateString()}</div>
+                          </div>
+                          <div className="text-right text-[11px] font-black text-cyan-200">{Number(r.score).toLocaleString()}<div className="text-[8px] uppercase text-white/30">pts</div></div>
+                        </div>
+                      )) : <div className="rounded-xl border border-white/8 px-3 py-4 text-center text-[10px] text-white/35">Complete a level to create your first real score record.</div>}
+                    </div>
+                  )}
+
+                  {performanceTab === "streak" && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-orange-300/15 bg-orange-400/5 p-3"><Flame className="h-5 w-5 text-orange-300" /><div className="mt-1 text-2xl font-black">{data.performance.currentStreak}</div><div className="text-[9px] font-bold uppercase text-white/35">Current streak</div></div>
+                      <div className="rounded-xl border border-yellow-300/15 bg-yellow-400/5 p-3"><TrophyGoldIcon className="h-5 w-5" /><div className="mt-1 text-2xl font-black">{data.performance.bestStreak}</div><div className="text-[9px] font-bold uppercase text-white/35">Best streak</div></div>
+                    </div>
+                  )}
+
+                  {performanceTab === "stats" && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {[
+                        [Gamepad2, "Games played", data.performance.gamesPlayed],
+                        [TrophyGoldIcon, "Best score", data.performance.bestScore],
+                        [BarChart3, "Average score", data.performance.averageScore],
+                        [Flame, "Best streak", data.performance.bestStreak],
+                      ].map(([Icon, label, value]) => (
+                        <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 p-2.5"><Icon className="h-4 w-4 text-cyan-300" /><div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div><div className="text-[9px] font-bold uppercase text-white/35">{label}</div></div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
 
-              {/* Tabs + weekly reset */}
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <div className="flex rounded-full border border-cyan-300/15 bg-[#04182a]/90 p-0.5">
-                  {TABS.map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setTab(key)}
-                      className={`rounded-full px-3 py-1.5 text-[10px] font-black transition ${
-                        tab === key ? "bg-gradient-to-b from-[#ffd21a] to-[#ff8500] text-[#241300]" : "text-white/55"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {tab === "weekly" && ready && (
-                  <div className="flex items-center gap-1 rounded-full border border-pink-300/25 bg-[#2a1024]/70 px-2 py-1.5 text-[10px] font-bold text-pink-100">
-                    <CalendarIcon className="h-3.5 w-3.5" /> Resets {d}d {h}h {m}m
-                  </div>
-                )}
-              </div>
-
-              {tab === "weekly" && ready && (
-                <div className="mt-2 grid grid-cols-4 gap-1.5">
-                  {REWARD_TIERS.map((t, i) => {
-                    const active = myWeeklyRank && myWeeklyRank <= t.max && (i === 0 || myWeeklyRank > REWARD_TIERS[i - 1].max);
+              <div className="mt-3 rounded-2xl border border-cyan-300/15 bg-[#04182a]/75 p-3">
+                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">My Records</div>
+                <div className="mt-0.5 text-[10px] text-white/35">Your strongest completed runs, streaks and progress.</div>
+                <div className="mt-2 flex rounded-xl border border-white/8 bg-[#031a2a]/80 p-0.5">
+                  {TABS.map(([key, label]) => {
+                    const Icon = key === "scores" ? TrophyGoldIcon : key === "streak" ? Flame : BarChart3;
                     return (
-                      <div
-                        key={t.label}
-                        className={`rounded-xl border py-1.5 text-center ${active ? "border-yellow-300/60 bg-[#3a2a06]/60" : "border-white/8 bg-[#04182a]/80"}`}
-                      >
-                        <div className="text-[10px] font-black">{t.label}</div>
-                        <div className="mt-0.5 flex items-center justify-center gap-1 text-[11px] font-black text-yellow-200">
-                          <HomeCoinIcon className="h-3.5 w-3.5" />
-                          {t.coins}
-                        </div>
-                        <div className="flex items-center justify-center gap-1 text-[11px] font-black text-purple-200">
-                          <HomeGemIcon className="h-3.5 w-3.5" />
-                          {t.gems}
-                        </div>
-                      </div>
+                      <button key={key} type="button" onClick={() => setPerformanceTab(key)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-black transition ${performanceTab === key ? "bg-white/10 text-white" : "text-white/45"}`}>
+                        <Icon className="h-3.5 w-3.5" /> {label}
+                      </button>
                     );
                   })}
                 </div>
-              )}
-
-              {!ready ? (
-                <p className="py-10 text-center text-[11px] text-white/40">Loading leaderboard…</p>
-              ) : (
-                <>
-                  {board.length === 0 ? (
-                    <div className="mt-4 rounded-2xl border border-white/8 bg-[#04182a]/70 px-4 py-7 text-center">
-                      <div className="text-sm font-black">No ranked players yet</div>
-                      <div className="mt-1 text-[10px] leading-relaxed text-white/40">Only real synced players appear here. This board fills as people actually play.</div>
-                    </div>
-                  ) : board.length < 3 ? (
-                    <div className="mt-3 space-y-1.5">{board.map((e) => <Row key={e.id} e={e} />)}</div>
-                  ) : (
-                    <>
-                      <Podium top={board.slice(0, 3)} />
-                      <div className="mt-2 space-y-1.5 pb-2">
-                        {listed.map((e) => <Row key={e.id} e={e} />)}
-                        {meOutside && <><div className="py-0.5 text-center text-[10px] font-black tracking-[0.4em] text-white/30">•••</div><Row e={me} /></>}
-                      </div>
-                    </>
-                  )}
-                  <p className="px-2 pb-1 pt-2 text-center text-[10px] leading-relaxed text-white/30">
-                    Live board · only actual synced player profiles and earned progress are listed.
-                  </p>
-                </>
-              )}
-            </section>
-
-            {/* Sticky "your rank" bar */}
-            {me && (
-              <div className="relative z-10 shrink-0 border-t border-yellow-300/25 bg-[#1a1404]/95 px-4 py-2 backdrop-blur">
-                <div className="flex items-center gap-2.5">
-                  <TrophyGoldIcon className="h-6 w-6" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-black">
-                      You are #{me.rank} <span className="text-white/40">of {board.length}</span>
-                    </div>
-                    <div className="truncate text-[10px] font-bold text-yellow-200/80">
-                      {above ? `${gap.toLocaleString()} pts to pass ${above.name}` : "You're on top!"}
-                    </div>
-                  </div>
-                  <div className="text-right text-[13px] font-black text-cyan-200">{me.value.toLocaleString()}</div>
-                </div>
               </div>
-            )}
+            </section>
 
             <BottomNav active="ranking" />
           </div>
