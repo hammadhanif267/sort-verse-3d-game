@@ -404,7 +404,7 @@ export default function RankingPage() {
                     {data?.performance?.topScores?.length ? data.performance.topScores.map((r, index) => (
                       <div key={r.id || `${r.completedAt}-${index}`} className="group w-full rounded-xl border border-white/8 bg-[#031a2a]/80 px-3 py-2.5 text-left transition hover:border-cyan-300/30 hover:bg-[#06243a]">
                         <div className="flex items-start gap-2">
-                          <span className="mt-0.5 w-6 text-center text-[10px] font-black text-yellow-300">#{index + 1}</span>
+                          <span className="mt-0.5 w-12 text-center text-[10px] font-black text-yellow-300">Level {r.level}</span>
                           <Avatar name={data?.name || "Player"} you size={30} avatar={data?.avatar || null} />
                           <Gamepad2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                           <div className="min-w-0 flex-1">
