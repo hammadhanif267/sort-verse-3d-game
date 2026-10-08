@@ -370,10 +370,8 @@ export default function RankingPage() {
                   <div className="mt-0.5 text-[10px] text-white/35">Your best runs, streaks and progress</div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => openPerformance({ id: "overall-performance", isOverall: true })}
-                  className="mb-2.5 w-full rounded-xl border border-cyan-300/20 bg-gradient-to-r from-cyan-400/10 to-purple-400/10 px-3 py-2.5 text-left transition hover:border-cyan-300/35 hover:bg-cyan-400/10"
+                <div
+                  className="mb-2.5 w-full rounded-xl border border-cyan-300/20 bg-gradient-to-r from-cyan-400/10 to-purple-400/10 px-3 py-2.5 text-left"
                 >
                   <div className="flex items-center gap-2">
                     <Avatar name={data?.name || "Player"} you size={34} avatar={data?.avatar || null} />
@@ -384,9 +382,13 @@ export default function RankingPage() {
                       </div>
                       <div className="mt-1 text-[9px] font-bold text-white/55">{data?.name || "Player"} is at Stage {data?.city?.cityStage || 1} · City Level {data?.city?.cityLevel || 1} · Overall Performance</div>
                     </div>
-                    <span className="shrink-0 text-[9px] font-black text-cyan-200">View</span>
+                    <button
+                      type="button"
+                      onClick={() => openPerformance({ id: "overall-performance", isOverall: true })}
+                      className="shrink-0 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-black text-cyan-100 transition hover:bg-cyan-400/20"
+                    >View</button>
                   </div>
-                </button>
+                </div>
 
                 <div className="flex rounded-xl border border-white/8 bg-[#031a2a]/80 p-0.5">
                   {TABS.map(([key, label]) => {
