@@ -99,7 +99,18 @@ export function computePerformance(records = []) {
       }
     }
   }
-  const topScores = [...clean].sort((a,b) => Number(b.score)-Number(a.score) || Number(b.completedAt)-Number(a.completedAt)).slice(0,10);
+  const difficultyOrder = { normal: 0, hard: 1, expert: 2 };
+  // Ranking receipts are shown in true level progression order:
+  // Normal 1-12, then Hard 1-12, then Expert 1-12.
+  const topScores = [...clean].sort((a, b) => {
+    const da = difficultyOrder[String(a?.difficulty || "normal").toLowerCase()] ?? 99;
+    const db = difficultyOrder[String(b?.difficulty || "normal").toLowerCase()] ?? 99;
+    if (da !== db) return da - db;
+    const la = Number(a?.level) || 0;
+    const lb = Number(b?.level) || 0;
+    if (la !== lb) return la - lb;
+    return Number(b?.completedAt || 0) - Number(a?.completedAt || 0);
+  });
   return { gamesPlayed, bestScore, averageScore, bestStreak, currentStreak, topScores };
 }
 

@@ -402,7 +402,7 @@ export default function RankingPage() {
                 {performanceTab === "scores" && (
                   <div className="mt-2 space-y-1.5">
                     {data?.performance?.topScores?.length ? data.performance.topScores.map((r, index) => (
-                      <button key={r.id || `${r.completedAt}-${index}`} type="button" onClick={() => openPerformance(r)} className="group w-full rounded-xl border border-white/8 bg-[#031a2a]/80 px-3 py-2.5 text-left transition hover:border-cyan-300/30 hover:bg-[#06243a] active:scale-[0.99]">
+                      <div key={r.id || `${r.completedAt}-${index}`} className="group w-full rounded-xl border border-white/8 bg-[#031a2a]/80 px-3 py-2.5 text-left transition hover:border-cyan-300/30 hover:bg-[#06243a]">
                         <div className="flex items-start gap-2">
                           <span className="mt-0.5 w-6 text-center text-[10px] font-black text-yellow-300">#{index + 1}</span>
                           <Avatar name={data?.name || "Player"} you size={30} avatar={data?.avatar || null} />
@@ -421,9 +421,12 @@ export default function RankingPage() {
                             </div>
                             <div className="mt-0.5 text-[8px] font-semibold text-white/30">Completed {r.completedAt ? new Date(r.completedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Recorded"}</div>
                           </div>
-                          <div className="shrink-0 text-right text-[12px] font-black text-yellow-200">{Number(r.score).toLocaleString()}<div className="text-[8px] uppercase text-white/30">points</div></div>
+                          <div className="shrink-0 text-right">
+                            <div className="text-[12px] font-black text-yellow-200">{Number(r.score).toLocaleString()}<div className="text-[8px] uppercase text-white/30">points</div></div>
+                            <button type="button" onClick={() => openPerformance(r)} className="mt-1 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-black text-cyan-100 transition hover:bg-cyan-400/20">View</button>
+                          </div>
                         </div>
-                      </button>
+                      </div>
                     )) : (
                       <div className="rounded-xl border border-white/8 px-3 py-4 text-center text-[10px] text-white/35">Complete a level to create your first real score record.</div>
                     )}
@@ -478,7 +481,7 @@ export default function RankingPage() {
                       </div>
 
                       <div className="my-4 text-center">
-                        <div className="text-3xl font-black text-yellow-300">{Number(selectedPerformance.score || 0).toLocaleString()}</div>
+                        <div className="text-3xl font-black text-yellow-300">{Number(receiptDetails(selectedPerformance).score || 0).toLocaleString()}</div>
                         <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/35">Points</div>
                       </div>
 
