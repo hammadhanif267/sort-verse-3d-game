@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { computeCityProgress } from "@/lib/cityProgress";
 
 const LEVEL_COUNT = 12;
 const MULT = { normal: 1, hard: 1.5, expert: 2 };
@@ -38,7 +39,28 @@ export function readGameRecords() {
   try {
     const raw = window.localStorage.getItem(GAME_RECORDS_KEY);
     const value = raw ? JSON.parse(raw) : [];
-    return Array.isArray(value) ? value.filter(Boolean) : [];
+    if (Array.isArray(value) && value.length) return value.filter(Boolean);
+
+    // Backward compatibility: older builds stored completed levels only in
+    // the stars map. Convert those real completed levels into lifetime
+    // records so the Ranking page remains populated after an app update.
+    const stars = read("sortverse-level-stars", {});
+    const migrated = [];
+    for (const difficulty of Object.keys(MULT)) {
+      for (let level = 1; level <= LEVEL_COUNT; level += 1) {
+        const earnedStars = Math.max(0, Math.min(3, Number(stars[`${difficulty}-${level}`]) || 0));
+        if (!earnedStars) continue;
+        const multiplier = MULT[difficulty];
+        migrated.push({
+          id: `legacy-${difficulty}-${level}`,
+          level, difficulty, stars: earnedStars, moves: null,
+          score: Math.round((earnedStars * 100 + 50) * multiplier),
+          completedAt: 0, legacy: true,
+        });
+      }
+    }
+    if (migrated.length) window.localStorage.setItem(GAME_RECORDS_KEY, JSON.stringify(migrated));
+    return migrated;
   } catch { return []; }
 }
 
@@ -48,12 +70,12 @@ function dateKey(ms) {
 }
 
 export function computePerformance(records = []) {
-  const clean = [...records].filter((r) => Number.isFinite(Number(r?.score)) && r?.completedAt).sort((a,b) => Number(a.completedAt) - Number(b.completedAt));
+  const clean = [...records].filter((r) => Number.isFinite(Number(r?.score))).sort((a,b) => Number(a.completedAt || 0) - Number(b.completedAt || 0));
   const scores = clean.map((r) => Number(r.score) || 0);
   const gamesPlayed = clean.length;
   const bestScore = scores.length ? Math.max(...scores) : 0;
   const averageScore = gamesPlayed ? Math.round(scores.reduce((a,b)=>a+b,0) / gamesPlayed) : 0;
-  const uniqueDays = [...new Set(clean.map((r) => dateKey(Number(r.completedAt))))];
+  const uniqueDays = [...new Set(clean.filter((r) => Number(r?.completedAt) > 0).map((r) => dateKey(Number(r.completedAt))))];
   const daySet = new Set(uniqueDays);
   let bestStreak = 0;
   let run = 0;
@@ -164,15 +186,17 @@ function localEntry(stats, profile, value, id = "local-player") {
 
 export function useRanking() {
   const [profile, setProfile] = useState({ name: "Player", avatar: null });
-  const [stats, setStats] = useState({ score: 0, cleared: 0, stars: 0, byDiff: { normal: 0, hard: 0, expert: 0 }, dailyDays: 0 });
+  const [stats, setStats] = useState({ score: 0, cleared: 0, stars: 0, byDiff: { normal: 0, hard: 0, expert: 0 }, dailyDays: 0, city: computeCityProgress({}) });
   const [week, setWeek] = useState(null);
   const [tick, setTick] = useState(0);
   const [records, setRecords] = useState([]);
 
   useEffect(() => {
     const sync = () => {
-      const nextStats = computeScore(read("sortverse-level-stars", {}), read("sortverse-daily-completed", {}));
-      setStats(nextStats);
+      const starsMap = read("sortverse-level-stars", {});
+      const nextStats = computeScore(starsMap, read("sortverse-daily-completed", {}));
+      const nextCity = computeCityProgress(starsMap);
+      setStats({ ...nextStats, city: nextCity });
       setProfile({ name: read(K.name, "Player"), avatar: read(K.avatar, null) });
       const nextRecords = readGameRecords();
       const nextDaily = read("sortverse-daily-completed", {});

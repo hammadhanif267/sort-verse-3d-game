@@ -13,6 +13,7 @@ import { showCongrats } from "@/components/CongratsToast";
 import { CrownIcon, FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const CLAIM_KEY = "sortverse-achievements-claimed";
+const AVATAR_RESET_KEY = "sortverse-avatar-reset-manual";
 
 const EMPTY_BUILDER = { shape: null, color: null, bg: null, face: null, gender: null, hair: null, outfit: null, accessory: null, skin: null };
 
@@ -107,9 +108,16 @@ export default function ProfilePage() {
 
   function resetAll() {
     if (!confirmReset) return setConfirmReset(true);
+    // A full reset really means a clean local player: identity, avatar,
+    // gameplay progress, rewards, achievements and performance history all
+    // start over. Keep a small flag only so the avatar studio does not
+    // auto-create a character again immediately after the reset.
     Object.keys(window.localStorage)
       .filter((k) => k.startsWith("sortverse-"))
       .forEach((k) => window.localStorage.removeItem(k));
+    window.localStorage.setItem(AVATAR_RESET_KEY, "1");
+    window.dispatchEvent(new Event("sortverse-progress"));
+    window.dispatchEvent(new Event("sortverse-profile"));
     window.location.assign("/");
   }
 
@@ -124,12 +132,20 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!data || !avatar?.builder || avatar?.photo) return;
+    if (window.localStorage.getItem(AVATAR_RESET_KEY) === "1") return;
     const nextGender = inferAvatarGender(name);
     if (avatar.builder.gender && avatar.builder.gender !== nextGender) {
       setAvatar({ builder: { ...avatar.builder, gender: nextGender } });
     }
   }, [name]);
+  function resetAvatar() {
+    window.localStorage.setItem(AVATAR_RESET_KEY, "1");
+    setAvatar(null);
+    setBuilderDraft({ ...EMPTY_BUILDER });
+  }
+
   function applyAvatar() {
+    window.localStorage.removeItem(AVATAR_RESET_KEY);
     if (!d.gender) return;
     setAvatar({
       builder: {
@@ -266,7 +282,7 @@ export default function ProfilePage() {
                     <Camera className="h-3 w-3" /> Selfie Avatar
                   </button>
                   {avatar && (
-                    <button type="button" onClick={() => setAvatar(null)} className="text-white/45">
+                    <button type="button" onClick={resetAvatar} className="text-white/45">
                       Reset avatar
                     </button>
                   )}

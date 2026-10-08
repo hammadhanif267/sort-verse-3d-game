@@ -7,6 +7,8 @@ import { AlarmClock, Bomb, Pause, Play, Snowflake, Sparkles, Star, Trophy } from
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";
 import { showCongrats } from "@/components/CongratsToast";
+import { computeCityProgress } from "@/lib/cityProgress";
+import { computeScore, getLeague } from "@/lib/ranking";
 
 /* =========================================================
    SORTVERSE
@@ -617,10 +619,19 @@ export default function GameplayScene({
       const records = JSON.parse(window.localStorage.getItem(recordKey) || "[]");
       const multiplier = difficulty === "expert" ? 2 : difficulty === "hard" ? 1.5 : 1;
       const recordScore = Math.round((earnedStars * 100 + 50) * multiplier);
+      const cityProgress = computeCityProgress(stars);
+      let dailyCompleted = {};
+      try { dailyCompleted = JSON.parse(window.localStorage.getItem("sortverse-daily-completed") || "{}"); } catch {}
+      const lifetimeScore = computeScore(stars, dailyCompleted).score;
+      const league = getLeague(lifetimeScore);
       records.push({
         id: `${Date.now()}-${difficulty}-${level}`,
         level, difficulty, stars: earnedStars, moves, score: recordScore,
         coins: coinReward, diamonds: diamondReward, completedAt: Date.now(),
+        cityLevel: cityProgress.cityLevel,
+        stage: cityProgress.cityStage,
+        league: league.name,
+        lifetimeScore,
       });
       window.localStorage.setItem(recordKey, JSON.stringify(records.slice(-200)));
     } catch {}
