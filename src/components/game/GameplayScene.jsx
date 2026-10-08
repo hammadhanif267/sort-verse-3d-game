@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
 import Link from "next/link";
-import { AlarmClock, Bomb, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
+import { AlarmClock, Bomb, Home, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";
 import { showCongrats } from "@/components/CongratsToast";
@@ -1153,6 +1153,14 @@ export default function GameplayScene({
                 Play Again
               </button>
             </div>
+
+            <Link
+              href="/"
+              className="mt-2.5 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-black text-white/75 transition hover:bg-white/10 hover:text-white active:scale-[0.98]"
+            >
+              <Home className="h-4 w-4" />
+              Home
+            </Link>
           </div>
         </div>
       )}

@@ -452,14 +452,14 @@ export default function RankingPage() {
             </section>
 
             {selectedPerformance && (
-              <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/65 p-3 backdrop-blur-sm sm:items-center">
-                <div className="w-full max-w-[390px] overflow-hidden rounded-[26px] border border-cyan-300/25 bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)]">
-                  <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+              <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/65 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-4">
+                <div className="w-full max-w-[390px] max-h-[calc(100dvh-24px)] overflow-y-auto overscroll-contain rounded-[26px] border border-cyan-300/25 bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)] sm:max-h-[calc(100dvh-32px)]">
+                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#061b2b]/95 px-4 py-3 backdrop-blur-md">
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200">{selectedPerformance.isOverall ? "Overall Performance" : "Performance Receipt"}</div>
                       <div className="mt-0.5 text-[10px] text-white/40">{selectedPerformance.isOverall ? "Your complete gameplay progress" : "Your real gameplay result"}</div>
                     </div>
-                    <button type="button" onClick={() => setSelectedPerformance(null)} className="rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white" aria-label="Close performance view" title="Back"><X className="h-5 w-5" /></button>
+                    <button type="button" onClick={() => { setSelectedPerformance(null); setShareMessage(""); }} className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2.5 text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Close performance view" title="Back to Ranking"><X className="h-5 w-5" /></button>
                   </div>
 
                   <div className="p-4">
