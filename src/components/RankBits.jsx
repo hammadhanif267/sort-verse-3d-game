@@ -18,6 +18,65 @@ export const AVATAR_HAIRS = ["short", "fade", "curly", "long", "bob", "ponytail"
 export const AVATAR_OUTFITS = ["hoodie", "jacket", "tee", "dress", "sport", "royal"];
 export const AVATAR_ACCESSORIES = ["none", "glasses", "cap", "headphones", "bow", "earrings"];
 export const AVATAR_SKINS = ["fair", "warm", "tan", "deep"];
+export const AVATAR_PRESETS = {
+  girl: "/avatars/girl-avatar.webp",
+  boy: "/avatars/boy-avatar.webp",
+};
+
+export const AVATAR_OUTFIT_COLORS = {
+  black: "#111827",
+  white: "#f5f7fb",
+  red: "#d9344f",
+  blue: "#2d7ff9",
+  green: "#21a56a",
+  purple: "#7c4bd8",
+  yellow: "#eabf27",
+  cyan: "#21b9d4",
+};
+export const AVATAR_SHOE_COLORS = {
+  white: "#f5f7fb",
+  black: "#202833",
+  red: "#d9344f",
+  blue: "#2d7ff9",
+  green: "#21a56a",
+  purple: "#7c4bd8",
+  yellow: "#eabf27",
+};
+export const AVATAR_PANTS_COLORS = {
+  denim: "#3d73a8",
+  black: "#202833",
+  gray: "#7d8792",
+  white: "#e8edf3",
+  blue: "#2d7ff9",
+  green: "#278b63",
+  purple: "#7652b8",
+};
+export const AVATAR_TOP_COLORS = {
+  white: "#f5f7fb",
+  black: "#202833",
+  red: "#d9344f",
+  blue: "#2d7ff9",
+  green: "#21a56a",
+  purple: "#7c4bd8",
+  yellow: "#eabf27",
+};
+
+const PRESET_FILTERS = { blue: "none" };
+
+// Natural width/height of each avatar picture, so boxes can match it exactly and nothing gets cut.
+const PRESET_RATIO = { girl: 760 / 1254, boy: 1024 / 1474 };
+
+/** Best (largest, uncropped) picture stored for a photo / selfie avatar. */
+export function avatarFullPhoto(avatar) {
+  return avatar?.sourcePhoto || avatar?.photo || null;
+}
+
+/** width / height of the picture an avatar is shown with. */
+export function avatarAspect(avatar) {
+  if (avatarFullPhoto(avatar)) return avatar?.photoRatio || 1;
+  if (avatar?.preset && PRESET_RATIO[avatar.preset]) return PRESET_RATIO[avatar.preset];
+  return 1;
+}
 export const AVATAR_BGS = [
   ["#1a5fa8", "#07172b"], ["#168064", "#061d18"], ["#6d3fc1", "#170a2d"],
   ["#c26a18", "#281004"], ["#28607a", "#07151e"], ["#9c315e", "#230817"],
@@ -219,9 +278,45 @@ export function GameAvatarArt({
   );
 }
 
+export function PresetAvatarPreview({ gender = "boy", className = "", rounded = true, onClick }) {
+  const src = AVATAR_PRESETS[gender] || AVATAR_PRESETS.boy;
+  return (
+    <div
+      className={`relative h-full w-full overflow-hidden bg-[#081827] ${rounded ? "rounded-xl" : ""} ${className}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={`${gender} avatar`} className="absolute inset-0 h-full w-full object-contain object-center" draggable={false} />
+    </div>
+  );
+}
+
+export function AvatarShowcase({ name = "Player", avatar, className = "", onClick, fitHeight = false }) {
+  const full = avatarFullPhoto(avatar);
+  const label = avatar?.preset ? `${name} Avatar` : full ? `${name} Profile` : "Choose Avatar";
+  const ratio = avatarAspect(avatar);
+  // fitHeight: the parent gives a height, the box takes the picture's width from its ratio -> no side bars, no cropping.
+  const style = fitHeight && (full || avatar?.preset) ? { aspectRatio: ratio, height: "100%" } : undefined;
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#081827] ${className}`} style={style} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
+      {full ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={full} alt={label} className="absolute inset-0 h-full w-full object-contain object-center" draggable={false} />
+      ) : avatar?.preset ? (
+        <PresetAvatarPreview gender={avatar.preset} rounded={false} />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center"><Avatar name={name} size={72} avatar={avatar} /></div>
+      )}
+    </div>
+  );
+}
+
 export function Avatar({ name, you, size = 36, avatar }) {
   const ring = { "--tw-ring-color": you ? "#ffb020" : "rgba(255,255,255,0.15)" };
   if (avatar?.photo) return <img src={avatar.photo} alt={name} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, ...ring }} />;
+  if (avatar?.preset && AVATAR_PRESETS[avatar.preset]) return <img src={AVATAR_PRESETS[avatar.preset]} alt={`${name} avatar`} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, objectPosition: avatar.preset === "girl" ? "50% 14%" : "50% 0%", ...ring }} />;
   if (avatar?.builder) return <div className="shrink-0 overflow-hidden rounded-full ring-2" style={{ width:size, height:size, ...ring }}><GameAvatarArt {...avatar.builder} size={size} /></div>;
   const hue = avatar?.hue ?? [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   return <div className="flex shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white ring-2" style={{ width:size,height:size,background:`linear-gradient(145deg,hsl(${hue} 70% 50%),hsl(${(hue+40)%360} 70% 30%))`,...ring }}>{name.slice(0,2).toUpperCase()}</div>;
@@ -232,4 +327,4 @@ export function LeagueChip({ score }) {
   return <span className="inline-block rounded-full border px-1.5 py-[1px] text-[10px] font-black uppercase tracking-wide" style={{ color:l.color,borderColor:`${l.color}55`,background:`${l.color}14` }}>{l.name}</span>;
 }
 
-export { STYLE_LABELS };
+export { STYLE_LABELS, PRESET_FILTERS };

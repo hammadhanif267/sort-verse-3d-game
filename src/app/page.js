@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePlayerStats } from "@/lib/playerStats";
 import { usePlayerProfile } from "@/lib/ranking";
-import { Avatar } from "@/components/RankBits";
+import { PreviewableAvatar } from "@/components/AvatarPreview";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import BottomNav from "@/components/BottomNav";
 import { CalendarIcon, CityGoldIcon, HomeCoinIcon, HomeGemIcon, LevelsIcon } from "@/components/icons";
@@ -56,11 +56,11 @@ export default function HomePage() {
             <div className="relative z-10 flex h-full min-h-0 flex-col">
               {/* Top HUD */}
               <header className="flex shrink-0 items-center justify-between px-4 pt-4">
-                {/* Player: tap to open the profile */}
-                <Link href="/profile" prefetch className="flex items-center gap-2.5">
-                  <Avatar name={profile.name} you size={40} avatar={profile.avatar} />
+                {/* Player: tap the picture for a full preview, tap the name to open the profile */}
+                <div className="flex items-center gap-2.5">
+                  <PreviewableAvatar name={profile.name} you size={40} avatar={profile.avatar} fallbackHref="/profile" />
 
-                  <div className="leading-tight">
+                  <Link href="/profile" prefetch className="leading-tight">
                     <div className="max-w-[110px] truncate text-[11px] font-bold text-cyan-100/70">
                       {profile.name === "You" ? "Player" : profile.name}
                     </div>
@@ -68,8 +68,8 @@ export default function HomePage() {
                     <div className="text-sm font-bold text-white">
                       Level {level}
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
 
                 {/* Currency */}
                 <div className="flex items-center gap-2">

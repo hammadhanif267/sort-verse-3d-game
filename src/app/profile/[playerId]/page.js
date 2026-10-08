@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Trophy } from "lucide-react";
-import { Avatar, LeagueChip } from "@/components/RankBits";
+import { LeagueChip } from "@/components/RankBits";
+import { PreviewableAvatar } from "@/components/AvatarPreview";
 import { computeScore, getLeague } from "@/lib/ranking";
 
 export default function PublicPlayerProfile() {
@@ -29,7 +30,7 @@ export default function PublicPlayerProfile() {
     <Link href="/ranking" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-white/70"><ChevronLeft className="h-5 w-5"/>Ranking</Link>
     {player === undefined ? <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-white/50">Loading profile…</div> : player === null ? <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center">This profile is not available.</div> : <>
       <section className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/90 p-5 text-center shadow-2xl">
-        <div className="mx-auto w-fit"><Avatar name={player.name} avatar={player.avatar} size={82}/></div>
+        <div className="mx-auto w-fit"><PreviewableAvatar name={player.name} avatar={player.avatar} size={82}/></div>
         <h1 className="mt-3 text-xl font-black">{player.name}</h1><div className="mt-1 flex justify-center"><LeagueChip score={player.score}/></div>
         <div className="mt-5 grid grid-cols-3 gap-2"><Stat label="Score" value={player.score?.toLocaleString()}/><Stat label="Cleared" value={player.cleared}/><Stat label="Stars" value={player.stars}/></div>
       </section>

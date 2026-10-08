@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, Check, ChevronLeft, Pencil, ShieldCheck, Video, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import { AVATAR_BGS, AVATAR_COLORS, AVATAR_FACES, AVATAR_SHAPES, AVATAR_GENDERS, AVATAR_HAIRS, AVATAR_OUTFITS, AVATAR_ACCESSORIES, AVATAR_SKINS, Avatar, GameAvatarArt, STYLE_LABELS, inferAvatarGender } from "@/components/RankBits";
+import { AVATAR_PRESETS, AvatarShowcase, inferAvatarGender } from "@/components/RankBits";
+import AvatarPreview from "@/components/AvatarPreview";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { LEAGUES, getLeague, useRanking } from "@/lib/ranking";
@@ -14,8 +15,6 @@ import { CrownIcon, FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, S
 
 const CLAIM_KEY = "sortverse-achievements-claimed";
 const AVATAR_RESET_KEY = "sortverse-avatar-reset-manual";
-
-const EMPTY_BUILDER = { shape: null, color: null, bg: null, face: null, gender: null, hair: null, outfit: null, accessory: null, skin: null };
 
 const DIFFS = [
   ["normal", "Normal", "#4ee08a"],
@@ -40,6 +39,8 @@ export default function ProfilePage() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [editing, setEditing] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [draft, setDraft] = useState("");
   useBackgroundMusic("menu");
 
@@ -125,42 +126,17 @@ export default function ProfilePage() {
 
   const avatar = data ? data.avatar : null;
   const autoGender = inferAvatarGender(name);
-  const [builderDraft, setBuilderDraft] = useState(null);
-  const baseBuilder = avatar?.builder || EMPTY_BUILDER;
-  const d = builderDraft || baseBuilder;
-  const pick = (patch) => setBuilderDraft({ ...d, ...patch });
 
-  useEffect(() => {
-    if (!data || !avatar?.builder || avatar?.photo) return;
-    if (window.localStorage.getItem(AVATAR_RESET_KEY) === "1") return;
-    const nextGender = inferAvatarGender(name);
-    if (avatar.builder.gender && avatar.builder.gender !== nextGender) {
-      setAvatar({ builder: { ...avatar.builder, gender: nextGender } });
-    }
-  }, [name]);
+  function selectPreset(gender) {
+    window.localStorage.removeItem(AVATAR_RESET_KEY);
+    // Fixed 3D avatar: no outfit / colour customisation any more.
+    setAvatar({ preset: gender, builder: { gender } });
+    setAvatarPickerOpen(false);
+  }
+
   function resetAvatar() {
     window.localStorage.setItem(AVATAR_RESET_KEY, "1");
     setAvatar(null);
-    setBuilderDraft({ ...EMPTY_BUILDER });
-  }
-
-  function applyAvatar() {
-    window.localStorage.removeItem(AVATAR_RESET_KEY);
-    if (!d.gender) return;
-    setAvatar({
-      builder: {
-        shape: d.shape || "hero",
-        color: d.color || "blue",
-        bg: d.bg ?? 0,
-        face: d.face || "happy",
-        gender: d.gender,
-        hair: d.hair || "short",
-        outfit: d.outfit || "hoodie",
-        accessory: d.accessory || "none",
-        skin: d.skin || "fair",
-      },
-    });
-    setBuilderDraft(null);
   }
 
   // Crops the picked image to a centred square and shrinks it to 128px so it stays tiny in storage.
@@ -194,9 +170,16 @@ export default function ProfilePage() {
     ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
     ctx.restore();
     const photo = canvas.toDataURL("image/jpeg", 0.86);
-    const selfieBuilder = { ...d, gender: autoGender };
-    setAvatar({ builder: selfieBuilder, sourcePhoto: photo, source: "selfie" });
-    setBuilderDraft(selfieBuilder);
+    // Bigger, uncropped copy for the full-size preview.
+    const big = document.createElement("canvas");
+    big.width = side > 720 ? 720 : side;
+    big.height = big.width;
+    const bctx = big.getContext("2d");
+    bctx.translate(big.width, 0);
+    bctx.scale(-1, 1);
+    bctx.drawImage(video, sx, sy, side, side, 0, 0, big.width, big.height);
+    const sourcePhoto = big.toDataURL("image/jpeg", 0.88);
+    setAvatar({ preset: null, builder: { gender: autoGender }, photo, sourcePhoto, photoRatio: 1, source: "selfie" });
     setPhotoError("");
     setCameraOpen(false);
   }
@@ -219,7 +202,14 @@ export default function ProfilePage() {
         canvas.width = size;
         canvas.height = size;
         canvas.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
-        setAvatar({ ...avatar, photo: canvas.toDataURL("image/jpeg", 0.82) });
+        // Keep the whole original picture (not cropped) for the full preview, just scaled down.
+        const maxSide = 1100;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const full = document.createElement("canvas");
+        full.width = Math.round(img.width * scale);
+        full.height = Math.round(img.height * scale);
+        full.getContext("2d").drawImage(img, 0, 0, full.width, full.height);
+        setAvatar({ preset: null, builder: null, photo: canvas.toDataURL("image/jpeg", 0.82), sourcePhoto: full.toDataURL("image/jpeg", 0.85), photoRatio: full.width / full.height, source: "upload" });
         setPhotoError("");
       };
       img.src = reader.result;
@@ -265,18 +255,23 @@ export default function ProfilePage() {
               {/* Identity */}
               <div className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-4 text-center shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex justify-center">
-                  <button type="button" onClick={() => fileRef.current?.click()} className="relative" aria-label="Change profile photo">
-                    <Avatar name={name} you size={72} avatar={avatar} />
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-cyan-300/40 bg-[#0c3a58] text-white">
+                  <div className="relative">
+                    <button type="button" onClick={() => (avatar?.preset || avatar?.photo || avatar?.sourcePhoto ? setAvatarViewerOpen(true) : setAvatarPickerOpen(true))} className="block" aria-label="Open profile avatar">
+                      <div className="h-36">
+                        <AvatarShowcase name={name} avatar={avatar} fitHeight className="h-full" />
+                      </div>
+                    </button>
+                    {/* Camera icon: pick a photo from the device */}
+                    <button type="button" onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-[#0c3a58] text-white active:scale-90" aria-label="Upload profile photo">
                       <Camera className="h-3.5 w-3.5" />
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                   <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
                 </div>
                 {photoError && <div className="mt-1 text-[10px] font-bold text-red-300">{photoError}</div>}
                 <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] font-bold">
-                  <button type="button" onClick={() => fileRef.current?.click()} className="text-cyan-200">
-                    Upload photo
+                  <button type="button" onClick={() => setAvatarPickerOpen(true)} className="text-cyan-200">
+                    Change avatar
                   </button>
                   <button type="button" onClick={openCamera} className="inline-flex items-center gap-1 text-yellow-200">
                     <Camera className="h-3 w-3" /> Selfie Avatar
@@ -326,126 +321,27 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Create a polished in-game avatar */}
+              {/* Avatar selection */}
               <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Avatar Studio</div>
-                <div className="mt-0.5 text-[10px] text-white/35">Create your character, dress them, and make the look yours</div>
-                <div className="mt-2.5 flex items-start gap-3">
-                  <div className="shrink-0 overflow-hidden rounded-[22px] border border-yellow-300/35 bg-black/20 p-1 shadow-[0_12px_35px_rgba(0,0,0,.25)]">
-                    <GameAvatarArt {...d} size={118} />
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Profile Avatar</div>
+                    <div className="mt-0.5 text-[10px] text-white/35">Choose a 3D boy or girl avatar, upload a photo, or use a selfie.</div>
                   </div>
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div>
-                      <div className="text-[10px] font-bold text-white/40">Style</div>
-                      <div className="mt-1 flex gap-1.5">
-                        {AVATAR_SHAPES.map((sh) => (
-                          <button
-                            key={sh}
-                            type="button"
-                            aria-label={STYLE_LABELS[sh] || sh}
-                            onClick={() => pick({ shape: sh })}
-                            className={`overflow-hidden rounded-xl border-2 ${d.shape === sh ? "border-yellow-300" : "border-white/10"}`}
-                          >
-                            <GameAvatarArt shape={sh} color={d.color} bg={d.bg} face={d.face} size={34} />
-                            <span className="block px-1 pb-1 text-[7px] font-black uppercase text-white/50">{STYLE_LABELS[sh]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-white/40">Colour</div>
-                      <div className="mt-1 flex gap-1.5">
-                        {Object.keys(AVATAR_COLORS).map((k) => (
-                          <button
-                            key={k}
-                            type="button"
-                            aria-label={k}
-                            onClick={() => pick({ color: k })}
-                            className="h-6 w-6 rounded-full ring-2 transition active:scale-90"
-                            style={{ background: `linear-gradient(145deg,${AVATAR_COLORS[k].light},${AVATAR_COLORS[k].base})`, "--tw-ring-color": d.color === k ? "#ffb020" : "rgba(255,255,255,0.15)" }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-white/40">Expression</div>
-                      <div className="mt-1 flex gap-1.5">
-                        {AVATAR_FACES.map((face) => (
-                          <button
-                            key={face}
-                            type="button"
-                            aria-label={`${face} face`}
-                            onClick={() => pick({ face })}
-                            className={`h-7 min-w-7 rounded-full border px-1.5 text-[9px] font-black transition ${d.face === face ? "border-yellow-300 bg-yellow-300/15 text-yellow-100" : "border-white/10 bg-white/[.03] text-white/55"}`}
-                          >
-                            {face === "happy" ? "Smile" : face === "cool" ? "Cool" : face === "excited" ? "Joy" : "Focus"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-white/40">Theme</div>
-                      <div className="mt-1 flex gap-1.5">
-                        {AVATAR_BGS.map((pair, i) => (
-                          <button
-                            key={pair[0]}
-                            type="button"
-                            aria-label={`Background ${i + 1}`}
-                            onClick={() => pick({ bg: i })}
-                            className="h-6 w-6 rounded-full ring-2 transition active:scale-90"
-                            style={{ background: `linear-gradient(145deg,${pair[0]},${pair[1]})`, "--tw-ring-color": d.bg === i ? "#ffb020" : "rgba(255,255,255,0.15)" }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-2xl border border-white/8 bg-black/15 p-2.5">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-yellow-200/80">Character & Wardrobe</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="text-[9px] font-bold text-white/40">Character</div>
-                      <div className="mt-1 grid grid-cols-2 gap-1">
-                        {AVATAR_GENDERS.map((g) => <button key={g} type="button" onClick={() => pick({ gender: g })} className={`h-7 rounded-lg border text-[9px] font-black ${d.gender === g ? "border-yellow-300 bg-yellow-300/15 text-yellow-100" : "border-white/10 text-white/55"}`}>{g === "girl" ? "Girl" : "Boy"}</button>)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] font-bold text-white/40">Hair</div>
-                      <select value={d.hair || ""} onChange={(e) => pick({ hair: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
-                        <option value="" disabled>Select hair</option>
-                        {AVATAR_HAIRS.map((h) => <option key={h} value={h}>{h[0].toUpperCase()+h.slice(1)}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div className="text-[9px] font-bold text-white/40">Outfit</div>
-                      <select value={d.outfit || ""} onChange={(e) => pick({ outfit: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
-                        {AVATAR_OUTFITS.map((o) => <option key={o} value={o}>{o === "tee" ? "T-Shirt" : o[0].toUpperCase()+o.slice(1)}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div className="text-[9px] font-bold text-white/40">Accessory</div>
-                      <select value={d.accessory || ""} onChange={(e) => pick({ accessory: e.target.value || null })} className="mt-1 h-7 w-full rounded-lg border border-white/10 bg-[#071b2c] px-2 text-[9px] font-black text-white/75">
-                        <option value="" disabled>Select accessory</option>
-                        {AVATAR_ACCESSORIES.map((a) => <option key={a} value={a}>{a === "none" ? "None" : a[0].toUpperCase()+a.slice(1)}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mt-2">
-                    <div className="text-[9px] font-bold text-white/40">Skin Tone</div>
-                    <div className="mt-1 flex gap-1.5">
-                      {AVATAR_SKINS.map((sk) => <button key={sk} type="button" onClick={() => pick({ skin: sk })} aria-label={sk} className="h-6 w-6 rounded-full border-2" style={{ background: sk === "fair" ? "#ffe0c2" : sk === "warm" ? "#f4c095" : sk === "tan" ? "#c98257" : "#7a4935", borderColor: d.skin === sk ? "#ffd21a" : "rgba(255,255,255,.15)" }} />)}
-                    </div>
-                  </div>
+                  <button type="button" onClick={() => setAvatarPickerOpen(true)} className="shrink-0 rounded-full border border-yellow-300/40 bg-yellow-300/10 px-3 py-1.5 text-[10px] font-black text-yellow-100">Change</button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={applyAvatar}
-                  disabled={!d.gender}
-                  className="mt-3 h-10 w-full rounded-full border border-yellow-300/60 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] text-[12px] font-black text-[#241300] transition active:scale-[0.98]"
-                >
-                  Use this avatar
+                <button type="button" onClick={() => setAvatarPickerOpen(true)} className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/15 p-2.5 text-left active:scale-[.99]">
+                  <div className="h-28 shrink-0">
+                    <AvatarShowcase name={name} avatar={avatar} fitHeight className="h-full border-yellow-300/30" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-black text-white">{avatar?.preset || avatar?.photo ? (avatar?.preset ? `${name} Avatar` : `${name} Profile`) : "Choose your avatar"}</div>
+                    <div className="mt-1 text-[10px] font-bold text-white/40">Tap to switch avatar, upload a photo or take a selfie.</div>
+                  </div>
                 </button>
+
+                {avatar && <button type="button" onClick={resetAvatar} className="mt-2 w-full text-[10px] font-black text-white/40">Reset avatar</button>}
               </div>
 
               {/* Progress per difficulty */}
@@ -554,6 +450,34 @@ export default function ProfilePage() {
                 {ready ? "View Ranking" : "Loading…"}
               </Link>
             </section>
+
+            {avatarPickerOpen && (
+              <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/80 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-sm">
+                <div className="max-h-[92dvh] w-full max-w-[430px] overflow-y-auto rounded-[28px] border border-cyan-300/20 bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
+                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#041522]/95 px-4 py-3 backdrop-blur">
+                    <div><div className="text-sm font-black">Choose Profile Avatar</div><div className="text-[10px] text-white/40">Girl, boy, upload, or selfie.</div></div>
+                    <button type="button" onClick={() => setAvatarPickerOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/70" aria-label="Close avatar picker"><X className="h-4 w-4" /></button>
+                  </div>
+                  <div className="p-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[["girl","Girl Avatar"],["boy","Boy Avatar"]].map(([g,label]) => (
+                        <button key={g} type="button" onClick={() => selectPreset(g)} className={`overflow-hidden rounded-2xl border-2 bg-[#071b2c] ${avatar?.preset===g?"border-yellow-300":"border-white/10"}`}>
+                          <div className="h-52 w-full bg-black/20"><img src={AVATAR_PRESETS[g]} alt={label} className="h-full w-full object-contain" /></div>
+                          <div className="px-2 py-2 text-left"><div className="text-xs font-black">{label}</div><div className="text-[9px] font-bold text-white/40">Tap to use</div></div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => fileRef.current?.click()} className="flex h-10 items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 text-[10px] font-black text-cyan-100"><Camera className="h-3.5 w-3.5" /> Upload Profile</button>
+                      <button type="button" onClick={() => { setAvatarPickerOpen(false); openCamera(); }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-yellow-300/25 bg-yellow-300/10 text-[10px] font-black text-yellow-100"><Video className="h-3.5 w-3.5" /> Take Selfie</button>
+                    </div>
+                    {photoError && <div className="mt-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-[10px] font-bold text-red-200">{photoError}</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <AvatarPreview open={avatarViewerOpen} onClose={() => setAvatarViewerOpen(false)} name={name} avatar={avatar} />
 
             {cameraOpen && (
               <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">

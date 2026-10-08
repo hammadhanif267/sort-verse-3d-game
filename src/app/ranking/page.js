@@ -8,6 +8,7 @@ import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { getLeague, useRanking } from "@/lib/ranking";
 import { Avatar } from "@/components/RankBits";
+import { PreviewableAvatar } from "@/components/AvatarPreview";
 import { ChartIcon, FlagIcon, HomeCoinIcon, HomeGemIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const TABS = [
@@ -302,7 +303,7 @@ export default function RankingPage() {
               {/* Player / league card */}
               <div className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center gap-3">
-                  <Avatar name={data ? data.name : "You"} you size={46} avatar={data ? data.avatar : null} />
+                  <PreviewableAvatar name={data ? data.name : "You"} you size={46} avatar={data ? data.avatar : null} />
                   <div className="min-w-0 flex-1">
                     {editing ? (
                       <input

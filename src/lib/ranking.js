@@ -239,8 +239,8 @@ export function useRanking() {
   }
 
   function setAvatar(next) {
-    const avatar = next && (next.photo || next.sourcePhoto || next.builder || next.hue !== undefined)
-      ? { photo: next.photo || null, sourcePhoto: next.sourcePhoto || null, source: next.source || null, builder: next.builder || null, hue: next.hue }
+    const avatar = next && (next.photo || next.sourcePhoto || next.preset || next.builder || next.hue !== undefined)
+      ? { photo: next.photo || null, sourcePhoto: next.sourcePhoto || null, source: next.source || null, photoRatio: next.photoRatio || null, preset: next.preset || null, builder: next.builder || null, hue: next.hue }
       : null;
     if (avatar) window.localStorage.setItem(K.avatar, JSON.stringify(avatar)); else window.localStorage.removeItem(K.avatar);
     setProfile((p) => ({ ...p, avatar }));
