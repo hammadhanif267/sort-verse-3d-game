@@ -81,9 +81,12 @@ export default function CityPage() {
   useEffect(() => {
     if (cityStage === shownStage) return undefined;
 
-    setIncomingStage(cityStage);
-    setShowIncoming(false);
-    const frame = window.requestAnimationFrame(() => setShowIncoming(true));
+    let innerFrame = null;
+    const frame = window.requestAnimationFrame(() => {
+      setIncomingStage(cityStage);
+      setShowIncoming(false);
+      innerFrame = window.requestAnimationFrame(() => setShowIncoming(true));
+    });
     const timer = window.setTimeout(() => {
       setShownStage(cityStage);
       setIncomingStage(null);
@@ -92,6 +95,7 @@ export default function CityPage() {
 
     return () => {
       window.cancelAnimationFrame(frame);
+      if (innerFrame !== null) window.cancelAnimationFrame(innerFrame);
       window.clearTimeout(timer);
     };
   }, [cityStage, shownStage]);
@@ -111,11 +115,13 @@ export default function CityPage() {
     } catch {}
     const hasPriorRecord = Number.isFinite(seen) && seen > 0;
 
+    let celebrateFrame = null;
+    let celebrationTimer = null;
     if (hasPriorRecord && seen < cityLevel) {
-      setCelebrateLevelUp(true);
+      celebrateFrame = window.requestAnimationFrame(() => setCelebrateLevelUp(true));
       playLevelCompleteVoice("Your city grew!");
       showCongrats({ kind: "level", title: `City reached Level ${cityLevel}` });
-      window.setTimeout(() => setCelebrateLevelUp(false), 1600);
+      celebrationTimer = window.setTimeout(() => setCelebrateLevelUp(false), 1600);
     }
 
     if (!hasPriorRecord || seen !== cityLevel) {
@@ -123,6 +129,10 @@ export default function CityPage() {
         window.localStorage.setItem(SEEN_LEVEL_KEY, String(cityLevel));
       } catch {}
     }
+    return () => {
+      if (celebrateFrame !== null) window.cancelAnimationFrame(celebrateFrame);
+      if (celebrationTimer !== null) window.clearTimeout(celebrationTimer);
+    };
   }, [cityLevel]);
 
   return (
@@ -133,7 +143,7 @@ export default function CityPage() {
         <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
           <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             {/* Header */}
-            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
+            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Your City</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { scatter } from "@/lib/visualRandom";
 
 // Same palette as the in-game celebration, so this reads as "this game"
 // wherever it's used.
@@ -19,13 +20,13 @@ export function CelebrationPetals() {
       Array.from({ length: 16 }, (_, i) => ({
         id: i,
         color: PETAL_COLORS[i % PETAL_COLORS.length],
-        left: 50 + (Math.random() - 0.5) * 78,
-        rise: 180 + Math.random() * 140,
-        drift: (Math.random() - 0.5) * 110,
-        rotate: (Math.random() - 0.5) * 420,
-        size: 7 + Math.random() * 7,
-        delay: Math.random() * 260,
-        duration: 900 + Math.random() * 450,
+        left: 50 + (scatter(i, 1) - 0.5) * 78,
+        rise: 180 + scatter(i, 2) * 140,
+        drift: (scatter(i, 3) - 0.5) * 110,
+        rotate: (scatter(i, 4) - 0.5) * 420,
+        size: 7 + scatter(i, 5) * 7,
+        delay: scatter(i, 6) * 260,
+        duration: 900 + scatter(i, 7) * 450,
       })),
     [],
   );
@@ -66,11 +67,11 @@ export function FlyingRewards({ active, Icon, count = 6 }) {
     () =>
       Array.from({ length: count }, (_, i) => ({
         id: i,
-        x: (Math.random() - 0.5) * 90,
-        y: 26 + Math.random() * 26,
-        rotate: (Math.random() - 0.5) * 360,
-        delay: Math.random() * 140,
-        duration: 520 + Math.random() * 200,
+        x: (scatter(i, 8) - 0.5) * 90,
+        y: 26 + scatter(i, 9) * 26,
+        rotate: (scatter(i, 10) - 0.5) * 360,
+        delay: scatter(i, 11) * 140,
+        duration: 520 + scatter(i, 12) * 200,
       })),
     [count],
   );

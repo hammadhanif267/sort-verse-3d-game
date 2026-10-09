@@ -1,0 +1,17 @@
+{
+  "appId": "com.yourname.sortverse",
+  "appName": "SortVerse 3D",
+  "webDir": "out",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 400,
+      "launchFadeOutDuration": 150,
+      "backgroundColor": "#020b15",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "disable"
+    }
+  }
+}

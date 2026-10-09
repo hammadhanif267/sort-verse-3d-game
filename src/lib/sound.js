@@ -1,5 +1,7 @@
 "use client";
 
+import { isNative } from "@/lib/native";
+
 /**
  * SortVerse audio engine.
  *
@@ -25,6 +27,22 @@
 /* ------------------------------------------------------------------ */
 
 const MUTE_STORAGE_KEY = "sortverse-audio-muted";
+
+const MUSIC_STORAGE_KEY = "sortverse-setting-music";
+const EFFECT_STORAGE_KEY = "sortverse-setting-sound";
+const enabled = (key) => typeof window === "undefined" || window.localStorage.getItem(key) !== "0";
+const effectsOn = () => enabled(EFFECT_STORAGE_KEY) && !readMuted();
+export function setSoundEffectsEnabled(value) {
+  if (typeof window !== "undefined") window.localStorage.setItem(EFFECT_STORAGE_KEY, value ? "1" : "0");
+}
+export function setMusicEnabled(value) {
+  if (typeof window !== "undefined") window.localStorage.setItem(MUSIC_STORAGE_KEY, value ? "1" : "0");
+  applyMusic();
+}
+export function setAppActive(value) {
+  documentHidden = !value;
+  applyMusic();
+}
 
 let audioCtx = null;
 let masterGain = null;
@@ -359,6 +377,7 @@ function playLead(ctx, dest, { note, time, duration = 0.5, gain = 0.2 }) {
 /* ------------------------------------------------------------------ */
 
 export function playIntroChime() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -450,6 +469,7 @@ function playToneBurst(ctx, dest, { notes, start, duration = 0.16, gain = 0.32, 
 }
 
 export function playDragDropSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -464,6 +484,7 @@ export function playDragDropSound() {
 }
 
 export function playWrongMoveSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -477,6 +498,7 @@ export function playWrongMoveSound() {
 }
 
 export function playChainBreakSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -490,6 +512,7 @@ export function playChainBreakSound() {
 }
 
 export function playPopBurstSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -503,6 +526,7 @@ export function playPopBurstSound() {
 }
 
 export function playBombExplosionSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -517,6 +541,7 @@ export function playBombExplosionSound() {
 }
 
 export function playTubeCompleteSound() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -536,6 +561,7 @@ export function playTubeCompleteSound() {
  * when they land close together.
  */
 export function playCoinCollectSound({ pitch = 0 } = {}) {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -586,7 +612,17 @@ let lastSpeechAt = 0;
 const SPEECH_MIN_GAP_MS = 650;
 
 function speakLine(text, { rate = 1.15, pitch = 1.85, namePattern = /child|kid|junior|samantha|zira|google|female/i } = {}) {
-  if (typeof window === "undefined" || !window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") return;
+  if (typeof window === "undefined" || !effectsOn()) return;
+  if (isNative()) {
+    const now = Date.now();
+    if (now - lastSpeechAt < SPEECH_MIN_GAP_MS) return;
+    lastSpeechAt = now;
+    import("@capacitor-community/text-to-speech")
+      .then(({ TextToSpeech }) => TextToSpeech.speak({ text, lang: "en-US", rate, pitch: Math.min(pitch, 2), volume: 1 }))
+      .catch(() => {}); // No device voice installed: keep playing without speech.
+    return;
+  }
+  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") return;
   const now = Date.now();
   if (now - lastSpeechAt < SPEECH_MIN_GAP_MS) return; // a line is still likely playing — skip rather than cut it off
   lastSpeechAt = now;
@@ -613,6 +649,7 @@ function speakLine(text, { rate = 1.15, pitch = 1.85, namePattern = /child|kid|j
 // expose a guaranteed child voice, so we prefer youthful/female English
 // voices and use a higher pitch/rate to keep the delivery playful.
 export function playKidVoice(text = "Yay!") {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -629,6 +666,7 @@ export function playKidVoice(text = "Yay!") {
 // Candy-crush-style positive callout. SpeechSynthesis is used when the
 // browser has a suitable English voice; the bright chime remains the fallback.
 export function playGoodVoice() {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -644,6 +682,7 @@ export function playGoodVoice() {
 
 
 export function playLevelCompleteVoice(text = "Level complete! Great job!") {
+  if (!effectsOn()) return;
   whenReady(() => {
     const ctx = getContext();
     if (!ctx) return;
@@ -870,7 +909,7 @@ let documentHidden = false;
 let visibilityBound = false;
 
 function wantedTrackId() {
-  if (gameplayPaused || documentHidden) return null;
+  if (gameplayPaused || documentHidden || !enabled(MUSIC_STORAGE_KEY) || readMuted()) return null;
   return desiredId;
 }
 

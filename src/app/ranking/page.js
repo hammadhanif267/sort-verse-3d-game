@@ -8,11 +8,12 @@ import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { getLeague, useRanking } from "@/lib/ranking";
 import { Avatar } from "@/components/RankBits";
+import { isNative, shareNativeImage } from "@/lib/native";
 import { PreviewableAvatar } from "@/components/AvatarPreview";
 import { ChartIcon, FlagIcon, HomeCoinIcon, HomeGemIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const TABS = [
-  ["scores", "Top Scores"],
+  ["scores", "My Records"],
   ["streak", "Streak"],
   ["stats", "Stats"],
 ];
@@ -191,7 +192,7 @@ export default function RankingPage() {
       ["Current Stage", `Stage ${d.stage} • City Level ${d.cityLevel}`],
       ["Stars", `${d.stars} total`],
       ["Games Played", String(d.gamesPlayed)],
-      ["Best Score", `${d.bestScore.toLocaleString()} pts`],
+      ["Total Points", `${d.bestScore.toLocaleString()} pts`],
       ["Average Score", `${d.averageScore.toLocaleString()} pts`],
       ["Streak", `${d.currentStreak} current • ${d.bestStreak} best`],
       ["Normal / Hard / Expert", `${d.normal} / ${d.hard} / ${d.expert}`],
@@ -253,7 +254,13 @@ export default function RankingPage() {
   async function sharePerformanceReceipt(record) {
     try {
       const blob = await buildReceiptImage(record);
-      const file = new File([blob], record.isOverall ? "sortverse-overall-performance.png" : `sortverse-performance-level-${record.level}.png`, { type: "image/png" });
+      const filename = record.isOverall ? "sortverse-overall-performance.png" : `sortverse-performance-level-${record.level}.png`;
+      if (isNative()) {
+        await shareNativeImage(blob, filename, record.isOverall ? "SortVerse 3D Overall Performance" : "SortVerse 3D Performance");
+        setShareMessage("Receipt shared.");
+        return;
+      }
+      const file = new File([blob], filename, { type: "image/png" });
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ title: record.isOverall ? "Sortverse 3D Overall Performance" : "Sortverse 3D Performance", text: record.isOverall ? `${data?.name || "Player"} is at Stage ${data?.city?.cityStage || 1} · City Level ${data?.city?.cityLevel || 1} in the ${league.name} League.` : `My Sortverse 3D performance — Level ${record.level}, ${Number(record.score || 0).toLocaleString()} points`, files: [file] });
         setShareMessage("Receipt image shared.");
@@ -282,7 +289,7 @@ export default function RankingPage() {
             />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
 
-            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
+            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Ranking</span>

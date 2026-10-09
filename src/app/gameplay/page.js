@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import GameplayScene, { difficultyParams } from "../../components/game/GameplayScene";
 import { TimerIcon } from "@/components/icons";
 import { Pause, Play } from "lucide-react";
@@ -23,11 +23,17 @@ function GameplayContent() {
   const searchParams = useSearchParams();
   const levelParam = Number(searchParams.get("level"));
   const level = Number.isFinite(levelParam) && levelParam > 0 ? levelParam : 1;
+  const dailyDate = searchParams.get("daily");
   const difficultyParam = searchParams.get("difficulty");
   const difficulty = ["normal", "hard", "expert"].includes(difficultyParam) ? difficultyParam : "normal";
 
-  // Real-time countdown, reported up from GameplayScene every second —
-  // seeded here so the header never flashes a stale value on level change.
+  // Keyed sessions reset the HUD, puzzle, and pause state together whenever
+  // the level, difficulty, or daily challenge changes.
+  return <GameplaySession key={`${difficulty}-${level}-${dailyDate || "regular"}`} level={level} difficulty={difficulty} dailyDate={dailyDate} />;
+}
+
+function GameplaySession({ level, difficulty, dailyDate }) {
+  const router = useRouter();
   const [timeLeft, setTimeLeft] = useState(() => difficultyParams(level, difficulty).timeSeconds);
   const [paused, setPaused] = useState(false);
 
@@ -40,9 +46,13 @@ function GameplayContent() {
   };
 
   useEffect(() => {
-    setTimeLeft(difficultyParams(level, difficulty).timeSeconds);
-    setPaused(false);
-  }, [level, difficulty]);
+    const onBack = () => {
+      if (!paused) setPaused(true);
+      else if (window.confirm("Leave this level? Unsaved moves will be lost.")) router.push("/");
+    };
+    window.addEventListener("sortverse-native-back", onBack);
+    return () => window.removeEventListener("sortverse-native-back", onBack);
+  }, [paused, router]);
 
   // The original chime now belongs here: it plays exactly once as a level
   // starts, and then the separate gameplay loop takes over underneath it.
@@ -85,7 +95,7 @@ function GameplayContent() {
               className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,10,20,.55)_0%,rgba(2,11,21,.05)_30%,rgba(2,11,21,.10)_62%,rgba(1,8,16,.72)_100%)]"
             />
             {/* Top HUD */}
-            <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-4">
+            <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-[max(16px,env(safe-area-inset-top))]">
               {/* Pause / Resume */}
               <button
                 type="button"
@@ -124,9 +134,10 @@ function GameplayContent() {
             {/* 3D Game */}
             <section className="relative z-10 min-h-0 flex-1">
               <GameplayScene
-                key={`${difficulty}-${level}`}
+                key={`${difficulty}-${level}-${dailyDate || "regular"}`}
                 level={level}
                 difficulty={difficulty}
+                dailyDate={dailyDate}
                 onTimeChange={setTimeLeft}
                 paused={paused}
                 onTogglePause={togglePause}

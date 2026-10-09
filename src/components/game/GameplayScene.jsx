@@ -9,6 +9,9 @@ import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveS
 import { showCongrats } from "@/components/CongratsToast";
 import { computeCityProgress } from "@/lib/cityProgress";
 import { computeScore, getLeague } from "@/lib/ranking";
+import { calculateLevelAward } from "@/lib/rewards";
+import { vibrate } from "@/lib/native";
+import { scatter } from "@/lib/visualRandom";
 
 /* =========================================================
    SORTVERSE
@@ -66,7 +69,7 @@ const SHAPE_BY_COLOR = {
   red: "cube",
   yellow: "star",
   green: "triangle",
-  purple: "triangle",
+  purple: "diamond",
 };
 const DIFFICULTY_TIER = { normal: 0, hard: 1, expert: 2 };
 
@@ -430,13 +433,13 @@ function CelebrationPetals() {
       Array.from({ length: 16 }, (_, i) => ({
         id: i,
         color: PETAL_COLORS[i % PETAL_COLORS.length],
-        left: 50 + (Math.random() - 0.5) * 78,
-        rise: 220 + Math.random() * 160,
-        drift: (Math.random() - 0.5) * 120,
-        rotate: (Math.random() - 0.5) * 420,
-        size: 7 + Math.random() * 7,
-        delay: Math.random() * 260,
-        duration: 950 + Math.random() * 500,
+        left: 50 + (scatter(i, 13) - 0.5) * 78,
+        rise: 220 + scatter(i, 14) * 160,
+        drift: (scatter(i, 15) - 0.5) * 120,
+        rotate: (scatter(i, 16) - 0.5) * 420,
+        size: 7 + scatter(i, 17) * 7,
+        delay: scatter(i, 18) * 260,
+        duration: 950 + scatter(i, 19) * 500,
       })),
     [],
   );
@@ -473,11 +476,11 @@ function FlyingRewards({ active, Icon, count = 6 }) {
     () =>
       Array.from({ length: count }, (_, i) => ({
         id: i,
-        x: (Math.random() - 0.5) * 110,
-        y: 34 + Math.random() * 34,
-        rotate: (Math.random() - 0.5) * 360,
-        delay: Math.random() * 160,
-        duration: 560 + Math.random() * 200,
+        x: (scatter(i, 20) - 0.5) * 110,
+        y: 34 + scatter(i, 21) * 34,
+        rotate: (scatter(i, 22) - 0.5) * 360,
+        delay: scatter(i, 23) * 160,
+        duration: 560 + scatter(i, 24) * 200,
       })),
     [count],
   );
@@ -508,6 +511,7 @@ function FlyingRewards({ active, Icon, count = 6 }) {
 export default function GameplayScene({
   level = 1,
   difficulty = "normal",
+  dailyDate = null,
   onTimeChange,
   paused = false,
   onTogglePause,
@@ -524,12 +528,16 @@ export default function GameplayScene({
   const [mechanicFlash, setMechanicFlash] = useState(null);
   const [pieceEffects, setPieceEffects] = useState({});
   const [tubeBursts, setTubeBursts] = useState({});
-  const [celebrate, setCelebrate] = useState(false);
   const [coinPlay, setCoinPlay] = useState(false);
   const [gemPlay, setGemPlay] = useState(false);
   const [timeLeft, setTimeLeft] = useState(initialTime);
   const [timeUp, setTimeUp] = useState(false);
   const [bonusCoins, setBonusCoins] = useState(0);
+  const [actualReward, setActualReward] = useState(null);
+  const [undoUses, setUndoUses] = useState(1);
+  const [hintUses, setHintUses] = useState(1);
+  const [undoHistory, setUndoHistory] = useState([]);
+  const mechanicFlashTimer = useRef(null);
   const { addRewards, completeLevel } = usePlayerStats();
   const rewardRecorded = useRef(false);
   const completedRef = useRef(false);
@@ -559,12 +567,12 @@ export default function GameplayScene({
   useEffect(() => {
     if (completed || timeUp || paused) return undefined;
 
-    if (timeLeft <= 0) {
-      setTimeUp(true);
-      return undefined;
-    }
+    if (timeLeft <= 0) return undefined;
 
-    const timeout = setTimeout(() => setTimeLeft((value) => value - 1), 1000);
+    const timeout = setTimeout(() => {
+      setTimeLeft((value) => Math.max(0, value - 1));
+      if (timeLeft <= 1) setTimeUp(true);
+    }, 1000);
     return () => clearTimeout(timeout);
   }, [timeLeft, completed, timeUp, paused]);
 
@@ -572,8 +580,7 @@ export default function GameplayScene({
     if (!completed || rewardRecorded.current) return;
     rewardRecorded.current = true;
     completedRef.current = true;
-    playKidVoice(`Level complete! You got ${coinReward} gold and ${diamondReward} diamonds!`);
-    window.setTimeout(() => playKidVoice("Amazing! Great job!"), 850);
+    vibrate("win");
     const progressKey = "sortverse-difficulty-progress";
     const starsKey = "sortverse-level-stars";
     const rewardsKey = "sortverse-level-rewards";
@@ -589,7 +596,35 @@ export default function GameplayScene({
 
     const entryId = `${difficulty}-${level}`;
 
-    stars[entryId] = Math.max(Number(stars[entryId]) || 0, earnedStars);
+    const award = calculateLevelAward(stars, rewards, entryId, earnedStars, coinReward);
+    stars[entryId] = award.bestStars;
+    rewards[entryId] = award.total;
+    let awardedCoins = award.coins;
+    let awardedGems = award.diamonds;
+    if (difficulty === "normal" && dailyDate) {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      // Query strings are user-controllable. Only today's date can pay a daily reward.
+      const progressBefore = Math.max(0, Number(progress.normal) || 0);
+      const reachable = Math.min(12, Math.max(1, progressBefore + 1));
+      const todayIndex = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+      const featuredLevel = 1 + (todayIndex % reachable);
+      if (dailyDate === today && level === featuredLevel) {
+        let log = {};
+        try { log = JSON.parse(window.localStorage.getItem("sortverse-daily-completed") || "{}"); } catch {}
+        if (!log[today]) {
+          const dailyCoins = 100 * level;
+          const dailyGems = 1;
+          log[today] = { level, coins: dailyCoins, diamonds: dailyGems };
+          window.localStorage.setItem("sortverse-daily-completed", JSON.stringify(log));
+          awardedCoins += dailyCoins;
+          awardedGems += dailyGems;
+        }
+      }
+    }
+    setActualReward({ coins: awardedCoins, diamonds: awardedGems });
+    playKidVoice(awardedCoins || awardedGems ? `Level complete! You got ${awardedCoins} gold and ${awardedGems} diamonds!` : "Level complete! Nice replay!");
+    window.setTimeout(() => playKidVoice("Amazing! Great job!"), 850);
 
     // Progress is the highest contiguous level actually cleared. This keeps
     // the normal game flow honest even if someone manually opens a later
@@ -601,10 +636,7 @@ export default function GameplayScene({
       else break;
     }
     progress[difficulty] = contiguous;
-    rewards[entryId] = {
-      coins: Math.max(Number(rewards[entryId]?.coins) || 0, coinReward),
-      diamonds: Math.max(Number(rewards[entryId]?.diamonds) || 0, diamondReward),
-    };
+
 
     window.localStorage.setItem(progressKey, JSON.stringify(progress));
     window.localStorage.setItem(starsKey, JSON.stringify(stars));
@@ -627,7 +659,7 @@ export default function GameplayScene({
       records.push({
         id: `${Date.now()}-${difficulty}-${level}`,
         level, difficulty, stars: earnedStars, moves, score: recordScore,
-        coins: coinReward, diamonds: diamondReward, completedAt: Date.now(),
+        coins: awardedCoins, diamonds: awardedGems, completedAt: Date.now(),
         cityLevel: cityProgress.cityLevel,
         stage: cityProgress.cityStage,
         league: league.name,
@@ -637,20 +669,18 @@ export default function GameplayScene({
     } catch {}
 
     if (difficulty === "normal") {
-      completeLevel({ level, coins: coinReward, diamonds: diamondReward });
+      completeLevel({ level, coins: awardedCoins, diamonds: awardedGems });
     } else {
-      addRewards({ coins: coinReward, diamonds: diamondReward });
+      addRewards({ coins: awardedCoins, diamonds: awardedGems });
     }
-    showCongrats({ kind: "level", title: `Level ${level} complete`, coins: coinReward, diamonds: diamondReward });
-  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, diamondReward]);
+    showCongrats({ kind: "level", title: `Level ${level} complete`, coins: awardedCoins, diamonds: awardedGems });
+  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, dailyDate, moves, bonusCoins]);
 
   // The trophy screen's celebration: petals launch immediately and get a
   // clear moment on their own, then the coin total and the diamond total
   // each play a collect chime and float up into the total in turn.
   useEffect(() => {
     if (!completed) return undefined;
-    setCelebrate(true);
-
     const coinTimer = window.setTimeout(() => {
       playCoinCollectSound({ pitch: 0 });
       setCoinPlay(true);
@@ -667,13 +697,15 @@ export default function GameplayScene({
     };
   }, [completed]);
 
-  const coinCount = useCountUp(coinReward, { start: coinPlay, duration: 550 });
-  const gemCount = useCountUp(diamondReward, { start: gemPlay, duration: 550 });
+  const coinCount = useCountUp(actualReward?.coins ?? coinReward, { start: coinPlay, duration: 550 });
+  const gemCount = useCountUp(actualReward?.diamonds ?? diamondReward, { start: gemPlay, duration: 550 });
+
+  useEffect(() => () => window.clearTimeout(mechanicFlashTimer.current), []);
 
   const flashMechanic = useCallback((text) => {
     setMechanicFlash(text);
-    window.clearTimeout(flashMechanic.timeout);
-    flashMechanic.timeout = window.setTimeout(() => setMechanicFlash(null), 1100);
+    window.clearTimeout(mechanicFlashTimer.current);
+    mechanicFlashTimer.current = window.setTimeout(() => setMechanicFlash(null), 1100);
   }, []);
 
   const triggerPieceEffects = useCallback((ids, type) => {
@@ -716,6 +748,7 @@ export default function GameplayScene({
     setShakingTubeId(tubeId);
     window.setTimeout(() => setShakingTubeId((current) => current === tubeId ? null : current), 420);
     playWrongMoveSound();
+    vibrate("wrong");
     setMessage("Wrong move!");
   }, []);
 
@@ -791,6 +824,7 @@ export default function GameplayScene({
       let tripleBonusAwarded = 0;
       let defused = false;
 
+      setUndoHistory((history) => [...history, { tubes: structuredClone(tubes), moves, bonusCoins }].slice(-12));
       setTubes((current) => {
         const next = current.map((tube) => ({
           ...tube,
@@ -883,6 +917,7 @@ export default function GameplayScene({
       }
 
       playDragDropSound();
+      vibrate(willCompleteTube ? "complete" : "move");
       if (willCompleteTube) {
         playTubeCompleteSound();
         playGoodVoice();
@@ -900,12 +935,13 @@ export default function GameplayScene({
           : "Nice move!",
       );
     },
-    [dragging, tubes, triggerWrongMove, mechanics, flashMechanic, triggerPieceEffects, triggerTubeBurst],
+    [dragging, tubes, moves, bonusCoins, triggerWrongMove, mechanics, flashMechanic, triggerPieceEffects, triggerTubeBurst],
   );
 
   const handleInvalidDrop = useCallback(() => {
     if (!dragging) return;
     playWrongMoveSound();
+    vibrate("wrong");
     setDragging(null);
     setSelected(null);
     setMessage("Wrong move!");
@@ -922,7 +958,6 @@ export default function GameplayScene({
     setTubeBursts({});
     setMoves(0);
     setMessage("Drag an object to sort it");
-    setCelebrate(false);
     setCoinPlay(false);
     setGemPlay(false);
     rewardRecorded.current = false;
@@ -930,7 +965,59 @@ export default function GameplayScene({
     setTimeLeft(initialTime);
     setTimeUp(false);
     setBonusCoins(0);
+    setActualReward(null);
+    setUndoUses(1);
+    setHintUses(1);
+    setUndoHistory([]);
   }, [level, difficulty, initialTime]);
+
+  function spendBooster(kind) {
+    const count = kind === "undo" ? undoUses : hintUses;
+    const price = kind === "undo" ? 30 : 50;
+    if (count > 0) {
+      (kind === "undo" ? setUndoUses : setHintUses)(count - 1);
+      return true;
+    }
+    const balance = Number(window.localStorage.getItem("sortverse-player-coins") || 0);
+    if (balance < price) { setMessage(`Need ${price} coins for ${kind}`); return false; }
+    addRewards({ coins: -price });
+    return true;
+  }
+
+  function undoMove() {
+    if (completed || paused || timeUp || !undoHistory.length) return;
+    if (!spendBooster("undo")) return;
+    const last = undoHistory[undoHistory.length - 1];
+    setUndoHistory((history) => history.slice(0, -1));
+    setTubes(last.tubes);
+    setMoves(last.moves);
+    setBonusCoins(last.bonusCoins);
+    setDragging(null);
+    setSelected(null);
+    setMessage("Last move undone");
+  }
+
+  function showHint() {
+    if (completed || paused || timeUp) return;
+    let candidate = null;
+    for (let i = 0; i < tubes.length && !candidate; i += 1) {
+      const source = tubes[i];
+      const piece = source.objects.at(-1);
+      if (!piece || piece.frozen || piece.chainLayers > 0) continue;
+      for (let j = 0; j < tubes.length; j += 1) {
+        if (i === j) continue;
+        const target = tubes[j];
+        const top = target.objects.at(-1);
+        if (target.objects.length >= CAPACITY || (top && top.color !== piece.color)) continue;
+        if (source.objects.length === CAPACITY && source.objects.every((o) => o.color === piece.color)) continue;
+        candidate = `${i + 1} → ${j + 1} (${piece.color})`;
+        if (top) break;
+      }
+    }
+    if (!candidate) { setMessage("No available moves; try Undo"); return; }
+    if (!spendBooster("hint")) return;
+    setMessage(`Hint: tube ${candidate}`);
+  }
 
   // Drag follows the pointer; drop target is whichever tube the pointer is
   // over when released (checked via elementFromPoint, since the dragged
@@ -1026,6 +1113,13 @@ export default function GameplayScene({
         </div>
       </div>
 
+      {!completed && !timeUp && (
+        <div className="absolute inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-40 flex justify-center gap-3">
+          <button type="button" onClick={undoMove} disabled={paused || !undoHistory.length} className="rounded-full border border-cyan-300/40 bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Undo · {undoUses ? "Free" : "30 coins"}</button>
+          <button type="button" onClick={showHint} disabled={paused} className="rounded-full border border-yellow-300/40 bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Hint · {hintUses ? "Free" : "50 coins"}</button>
+        </div>
+      )}
+
       {/* Ghost of the dragged piece, following the pointer */}
       <div ref={dragLayerRef} className="pointer-events-none absolute inset-0 z-40">
         {dragging && dragPoint && (
@@ -1085,7 +1179,7 @@ export default function GameplayScene({
 
       {completed && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
-          {celebrate && <CelebrationPetals />}
+          <CelebrationPetals />
 
           <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
             <Trophy className="mx-auto h-11 w-11 fill-yellow-300/15 text-yellow-300" strokeWidth={1.8} />
@@ -1108,13 +1202,13 @@ export default function GameplayScene({
                     <FlyingRewards active={coinPlay} Icon={HomeCoinIcon} />
                     <span className={coinPlay ? "reward-pop" : ""}>+{coinCount}</span>
                     <HomeCoinIcon className="h-4 w-4" />
-                    {coinPlay && <span key="coin-float" className="reward-float text-yellow-200">+{coinReward}</span>}
+                    {coinPlay && <span key="coin-float" className="reward-float text-yellow-200">+{actualReward?.coins ?? 0}</span>}
                   </span>
                   <span className="relative inline-flex items-center gap-1.5 text-violet-200">
                     <FlyingRewards active={gemPlay} Icon={HomeGemIcon} count={4} />
                     <span className={gemPlay ? "reward-pop" : ""}>+{gemCount}</span>
                     <HomeGemIcon className="h-4 w-4" />
-                    {gemPlay && <span key="gem-float" className="reward-float text-cyan-200">+{diamondReward}</span>}
+                    {gemPlay && <span key="gem-float" className="reward-float text-cyan-200">+{actualReward?.diamonds ?? 0}</span>}
                   </span>
                 </div>
               </div>
@@ -1203,7 +1297,7 @@ export default function GameplayScene({
             <h2 className="mt-3 text-2xl font-black">Paused</h2>
 
             <p className="mt-1 text-xs text-white/60">
-              The timer and the puzzle are on hold — resume whenever you're ready.
+              The timer and the puzzle are on hold — resume whenever you&apos;re ready.
             </p>
 
             <div className="mt-5 flex flex-col gap-2.5">
@@ -1517,6 +1611,16 @@ function ObjectShape({ type, colors, size, responsive }) {
         <rect x="18" y="16" width="34" height="16" rx="8" fill="#ffffff" opacity="0.4" />
       </svg>
     );
+  }
+
+  if (type === "diamond") {
+    return <svg viewBox="0 0 100 100" style={style} aria-label="Diamond">
+      <defs><linearGradient id={`dia-${gradId}`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor={colors.light} /><stop offset="60%" stopColor={colors.base} /><stop offset="100%" stopColor={colors.dark} />
+      </linearGradient></defs>
+      <polygon points="50,4 94,50 50,96 6,50" fill={`url(#dia-${gradId})`} stroke={colors.dark} strokeWidth="3" />
+      <path d="M50 4 68 48 50 96 32 48Z" fill="#fff" opacity=".17" />
+    </svg>;
   }
 
   if (type === "triangle") {

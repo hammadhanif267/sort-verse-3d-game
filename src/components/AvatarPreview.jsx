@@ -26,16 +26,20 @@ export default function AvatarPreview({ open, onClose, name = "Player", avatar }
   const preset = !photo && avatar?.preset && AVATAR_PRESETS[avatar.preset] ? avatar.preset : null;
   const [phase, setPhase] = useState("spin"); // spin -> smile
   const [run, setRun] = useState(0);
-  const timer = useRef(null);
   const areaRef = useRef(null);
   const [area, setArea] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     if (!open || !preset) return undefined;
-    setPhase("spin");
-    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    timer.current = setTimeout(() => setPhase("smile"), reduce ? 200 : 5100);
-    return () => clearTimeout(timer.current);
+    // Defer the phase reset until after commit so React Compiler can keep
+    // the preview render pure. Cleanup cancels an obsolete replay.
+    const frame = window.requestAnimationFrame(() => setPhase("spin"));
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const smileTimer = window.setTimeout(() => setPhase("smile"), reduce ? 200 : 5100);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(smileTimer);
+    };
   }, [open, preset, run]);
 
   // Measure the free space so the figure is always fitted completely (never cropped or squashed).
@@ -87,7 +91,7 @@ export default function AvatarPreview({ open, onClose, name = "Player", avatar }
           </div>
           <div className="flex items-center gap-2">
             {preset && (
-              <button type="button" onClick={() => setRun((n) => n + 1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/70" aria-label="Replay">
+              <button type="button" onClick={() => { setPhase("spin"); setRun((n) => n + 1); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/70" aria-label="Replay">
                 <RotateCcw className="h-4 w-4" />
               </button>
             )}

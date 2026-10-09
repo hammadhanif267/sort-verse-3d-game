@@ -10,8 +10,9 @@ import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { LEAGUES, getLeague, useRanking } from "@/lib/ranking";
 import { playCoinCollectSound } from "@/lib/sound";
+import { isNative, pickNativePhoto } from "@/lib/native";
 import { showCongrats } from "@/components/CongratsToast";
-import { CrownIcon, FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
+import { FlagIcon, FlameIcon, HomeCoinIcon, HomeGemIcon, MedalIcon, StarIcon, TrophyGoldIcon } from "@/components/icons";
 
 const CLAIM_KEY = "sortverse-achievements-claimed";
 const AVATAR_RESET_KEY = "sortverse-avatar-reset-manual";
@@ -27,9 +28,12 @@ export default function ProfilePage() {
   const [claimed, setClaimed] = useState({});
   const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
-    try {
-      setClaimed(JSON.parse(window.localStorage.getItem(CLAIM_KEY) || "{}"));
-    } catch {}
+    // Read the device-only achievement ledger after hydration.
+    const frame = window.requestAnimationFrame(() => {
+      try { setClaimed(JSON.parse(window.localStorage.getItem(CLAIM_KEY) || "{}")); }
+      catch { setClaimed({}); }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
   const { ready, data, setName, setAvatar } = useRanking();
   const fileRef = useRef(null);
@@ -66,13 +70,14 @@ export default function ProfilePage() {
       }
     }
     startCamera();
+    const video = videoRef.current;
     return () => {
       cancelled = true;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-      if (videoRef.current) videoRef.current.srcObject = null;
+      if (video) video.srcObject = null;
     };
   }, [cameraOpen]);
 
@@ -92,7 +97,6 @@ export default function ProfilePage() {
     { Icon: MedalIcon, tone: "red", title: "Expert Master", hint: "Clear all Expert", done: byDiff.expert >= 12, coins: 400, gems: 6 },
     { Icon: FlameIcon, title: "Committed", hint: "7 daily challenges", done: (data?.dailyDays ?? 0) >= 7, coins: 100, gems: 2 },
     { Icon: TrophyGoldIcon, title: "Gold League", hint: "Reach 4,000 pts", done: score >= 4000, coins: 200, gems: 3 },
-    { Icon: CrownIcon, title: "Top 10", hint: "Online global top 10", done: false, coins: 300, gems: 5 },
   ];
 
   function claim(b) {
@@ -119,7 +123,7 @@ export default function ProfilePage() {
     window.localStorage.setItem(AVATAR_RESET_KEY, "1");
     window.dispatchEvent(new Event("sortverse-progress"));
     window.dispatchEvent(new Event("sortverse-profile"));
-    window.location.assign("/");
+    window.location.replace("/");
   }
 
   const unlocked = badges.filter((b) => b.done).length;
@@ -140,7 +144,27 @@ export default function ProfilePage() {
   }
 
   // Crops the picked image to a centred square and shrinks it to 128px so it stays tiny in storage.
+  async function chooseNativePhoto(source) {
+    try {
+      const dataUrl = await pickNativePhoto(source);
+      if (!dataUrl) return;
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], source === "selfie" ? "selfie.jpg" : "avatar.jpg", { type: blob.type || "image/jpeg" });
+      onPick({ target: { files: [file], value: "" } }, source);
+      setAvatarPickerOpen(false);
+    } catch (error) {
+      if (/cancel/i.test(error?.message || "")) return;
+      setPhotoError(error?.message || "Could not open the device camera or photo picker.");
+    }
+  }
+
+  function selectProfilePhoto() {
+    if (isNative()) chooseNativePhoto("upload");
+    else fileRef.current?.click();
+  }
+
   function openCamera() {
+    if (isNative()) { chooseNativePhoto("selfie"); return; }
     setPhotoError("");
     setCameraError("");
     setCameraOpen(true);
@@ -184,7 +208,7 @@ export default function ProfilePage() {
     setCameraOpen(false);
   }
 
-  function onPick(e) {
+  function onPick(e, sourceType = "upload") {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -209,7 +233,7 @@ export default function ProfilePage() {
         full.width = Math.round(img.width * scale);
         full.height = Math.round(img.height * scale);
         full.getContext("2d").drawImage(img, 0, 0, full.width, full.height);
-        setAvatar({ preset: null, builder: null, photo: canvas.toDataURL("image/jpeg", 0.82), sourcePhoto: full.toDataURL("image/jpeg", 0.85), photoRatio: full.width / full.height, source: "upload" });
+        setAvatar({ preset: null, builder: sourceType === "selfie" ? { gender: autoGender } : null, photo: canvas.toDataURL("image/jpeg", 0.82), sourcePhoto: full.toDataURL("image/jpeg", 0.85), photoRatio: full.width / full.height, source: sourceType });
         setPhotoError("");
       };
       img.src = reader.result;
@@ -234,7 +258,7 @@ export default function ProfilePage() {
             />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
 
-            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
+            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Profile</span>
@@ -262,7 +286,7 @@ export default function ProfilePage() {
                       </div>
                     </button>
                     {/* Camera icon: pick a photo from the device */}
-                    <button type="button" onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-[#0c3a58] text-white active:scale-90" aria-label="Upload profile photo">
+                    <button type="button" onClick={selectProfilePhoto} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-[#0c3a58] text-white active:scale-90" aria-label="Upload profile photo">
                       <Camera className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -442,6 +466,7 @@ export default function ProfilePage() {
                 {confirmReset ? "Tap again to erase ALL progress" : "Reset progress"}
               </button>
 
+              <Link href="/settings" className="mb-2 flex h-10 w-full items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">Settings and progress backup</Link>
               <Link
                 href="/ranking"
                 prefetch
@@ -462,13 +487,15 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-2 gap-2">
                       {[["girl","Girl Avatar"],["boy","Boy Avatar"]].map(([g,label]) => (
                         <button key={g} type="button" onClick={() => selectPreset(g)} className={`overflow-hidden rounded-2xl border-2 bg-[#071b2c] ${avatar?.preset===g?"border-yellow-300":"border-white/10"}`}>
-                          <div className="h-52 w-full bg-black/20"><img src={AVATAR_PRESETS[g]} alt={label} className="h-full w-full object-contain" /></div>
+                          <div className="h-52 w-full bg-black/20">{/* Preset artwork and uploaded data URLs bypass Next image processing. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={AVATAR_PRESETS[g]} alt={label} className="h-full w-full object-contain" /></div>
                           <div className="px-2 py-2 text-left"><div className="text-xs font-black">{label}</div><div className="text-[9px] font-bold text-white/40">Tap to use</div></div>
                         </button>
                       ))}
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => fileRef.current?.click()} className="flex h-10 items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 text-[10px] font-black text-cyan-100"><Camera className="h-3.5 w-3.5" /> Upload Profile</button>
+                      <button type="button" onClick={selectProfilePhoto} className="flex h-10 items-center justify-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 text-[10px] font-black text-cyan-100"><Camera className="h-3.5 w-3.5" /> Upload Profile</button>
                       <button type="button" onClick={() => { setAvatarPickerOpen(false); openCamera(); }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-yellow-300/25 bg-yellow-300/10 text-[10px] font-black text-yellow-100"><Video className="h-3.5 w-3.5" /> Take Selfie</button>
                     </div>
                     {photoError && <div className="mt-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-[10px] font-bold text-red-200">{photoError}</div>}

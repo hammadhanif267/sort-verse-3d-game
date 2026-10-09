@@ -55,7 +55,7 @@ export default function HomePage() {
             {/* Foreground content */}
             <div className="relative z-10 flex h-full min-h-0 flex-col">
               {/* Top HUD */}
-              <header className="flex shrink-0 items-center justify-between px-4 pt-4">
+              <header className="flex shrink-0 items-center justify-between px-4 pt-[max(16px,env(safe-area-inset-top))]">
                 {/* Player: tap the picture for a full preview, tap the name to open the profile */}
                 <div className="flex items-center gap-2.5">
                   <PreviewableAvatar name={profile.name} you size={40} avatar={profile.avatar} fallbackHref="/profile" />

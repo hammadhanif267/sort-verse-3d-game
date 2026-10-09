@@ -315,8 +315,14 @@ export function AvatarShowcase({ name = "Player", avatar, className = "", onClic
 
 export function Avatar({ name, you, size = 36, avatar }) {
   const ring = { "--tw-ring-color": you ? "#ffb020" : "rgba(255,255,255,0.15)" };
-  if (avatar?.photo) return <img src={avatar.photo} alt={name} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, ...ring }} />;
-  if (avatar?.preset && AVATAR_PRESETS[avatar.preset]) return <img src={AVATAR_PRESETS[avatar.preset]} alt={`${name} avatar`} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, objectPosition: avatar.preset === "girl" ? "50% 14%" : "50% 0%", ...ring }} />;
+  if (avatar?.photo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={avatar.photo} alt={name} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, ...ring }} />;
+  }
+  if (avatar?.preset && AVATAR_PRESETS[avatar.preset]) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={AVATAR_PRESETS[avatar.preset]} alt={`${name} avatar`} width={size} height={size} className="shrink-0 rounded-full object-cover ring-2" style={{ width:size, height:size, objectPosition: avatar.preset === "girl" ? "50% 14%" : "50% 0%", ...ring }} />;
+  }
   if (avatar?.builder) return <div className="shrink-0 overflow-hidden rounded-full ring-2" style={{ width:size, height:size, ...ring }}><GameAvatarArt {...avatar.builder} size={size} /></div>;
   const hue = avatar?.hue ?? [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   return <div className="flex shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white ring-2" style={{ width:size,height:size,background:`linear-gradient(145deg,hsl(${hue} 70% 50%),hsl(${(hue+40)%360} 70% 30%))`,...ring }}>{name.slice(0,2).toUpperCase()}</div>;

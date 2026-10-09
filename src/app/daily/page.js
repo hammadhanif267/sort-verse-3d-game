@@ -7,7 +7,10 @@ import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { playCoinCollectSound } from "@/lib/sound";
-import { CelebrationPetals, FlyingRewards } from "@/components/RewardCelebration";
+import {
+  CelebrationPetals,
+  FlyingRewards,
+} from "@/components/RewardCelebration";
 import { showCongrats } from "@/components/CongratsToast";
 import {
   CalendarIcon,
@@ -38,7 +41,9 @@ function dateKey(d) {
 // A stable, ever-increasing day number for a given local date — used to pick
 // which level today's challenge is, and to tell days apart cheaply.
 function dayIndexFromDate(d) {
-  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return Math.floor(
+    Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000,
+  );
 }
 
 // Monday-start week containing `d`.
@@ -52,16 +57,9 @@ function startOfWeek(d) {
 function getDailyLog() {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem("sortverse-daily-completed") || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function getLevelRewards() {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(window.localStorage.getItem("sortverse-level-rewards") || "{}");
+    return JSON.parse(
+      window.localStorage.getItem("sortverse-daily-completed") || "{}",
+    );
   } catch {
     return {};
   }
@@ -72,7 +70,9 @@ function getLevelRewards() {
 function getNormalProgress() {
   if (typeof window === "undefined") return 0;
   try {
-    const raw = JSON.parse(window.localStorage.getItem("sortverse-difficulty-progress") || "{}");
+    const raw = JSON.parse(
+      window.localStorage.getItem("sortverse-difficulty-progress") || "{}",
+    );
     return Number(raw.normal) || 0;
   } catch {
     return 0;
@@ -91,7 +91,9 @@ function pickTodayLevel(date, normalProgress) {
 function getFreeClaimLog() {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem("sortverse-daily-free-claim") || "{}");
+    return JSON.parse(
+      window.localStorage.getItem("sortverse-daily-free-claim") || "{}",
+    );
   } catch {
     return {};
   }
@@ -122,28 +124,11 @@ export default function DailyChallengePage() {
       // instead of waiting for the next throttled tick.
       tick();
 
-      // Today's specific challenge is just "today's featured level" under
-      // sortverse-level-rewards — if that entry exists, today is done. This
-      // reads the same progress the rest of the app already writes, so
-      // nothing about gameplay itself needs to change for this to work.
-      const today = new Date();
-      const key = dateKey(today);
+      // Daily completion is recorded only by gameplay launched with a valid
+      // daily date. A previously cleared normal level does NOT auto-complete
+      // today's challenge; historic daily logs are preserved without rewrite.
       const progress = getNormalProgress();
-      const level = pickTodayLevel(today, progress);
-      const entryId = `normal-${level}`;
-      const levelRewards = getLevelRewards();
       const log = getDailyLog();
-
-      if (levelRewards[entryId] && !log[key]) {
-        log[key] = {
-          level,
-          coins: Number(levelRewards[entryId].coins) || 0,
-          diamonds: Number(levelRewards[entryId].diamonds) || 0,
-        };
-        try {
-          window.localStorage.setItem("sortverse-daily-completed", JSON.stringify(log));
-        } catch {}
-      }
 
       setNormalProgress(progress);
       setDailyLog(log);
@@ -172,6 +157,9 @@ export default function DailyChallengePage() {
   const todayLevel = pickTodayLevel(now, normalProgress);
   const todayEntry = dailyLog[todayKey];
   const isTodayDone = Boolean(todayEntry);
+  // Keep the completed challenge's level visible even if clearing it
+  // unlocked a new Normal level and changed the featured-level formula.
+  const displayedLevel = isTodayDone ? (Number(todayEntry.level) || todayLevel) : todayLevel;
 
   const weekStart = useMemo(() => startOfWeek(now), [now]);
   const weekDays = useMemo(
@@ -210,7 +198,15 @@ export default function DailyChallengePage() {
 
   // Time left until the next local midnight, for "next reward" countdown.
   const msUntilMidnight = useMemo(() => {
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    const midnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      0,
+      0,
+    );
     return Math.max(0, midnight.getTime() - now.getTime());
   }, [now]);
   const hoursLeft = Math.floor(msUntilMidnight / 3_600_000);
@@ -237,13 +233,15 @@ export default function DailyChallengePage() {
     } catch {}
 
     addRewards({ coins: 200, diamonds: 5 });
-    showCongrats({ kind: "reward", title: "7-day streak bonus claimed", coins: 200, diamonds: 5 });
+    showCongrats({
+      kind: "reward",
+      title: "7-day streak bonus claimed",
+      coins: 200,
+      diamonds: 5,
+    });
   }, [isTodayClaimed, streak, todayKey, addRewards]);
 
-  // Preview shown before the puzzle is played — same base formula
-  // GameplayScene actually pays out (100 coins per level, 1+ diamonds for
-  // clearing it), so the number here matches what the player really earns
-  // instead of a separate, made-up "daily bonus" figure.
+  // The daily reward is independent of previous normal-level clears.
   const previewCoins = 100 * todayLevel;
   const previewDiamonds = 1;
 
@@ -256,11 +254,19 @@ export default function DailyChallengePage() {
     if (isFreeClaimed) return;
     const log = { ...getFreeClaimLog(), [todayKey]: true };
     try {
-      window.localStorage.setItem("sortverse-daily-free-claim", JSON.stringify(log));
+      window.localStorage.setItem(
+        "sortverse-daily-free-claim",
+        JSON.stringify(log),
+      );
     } catch {}
     setFreeClaimLog(log);
     addRewards({ coins: FREE_CLAIM_COINS, diamonds: FREE_CLAIM_DIAMONDS });
-    showCongrats({ kind: "reward", title: "Daily reward claimed", coins: FREE_CLAIM_COINS, diamonds: FREE_CLAIM_DIAMONDS });
+    showCongrats({
+      kind: "reward",
+      title: "Daily reward claimed",
+      coins: FREE_CLAIM_COINS,
+      diamonds: FREE_CLAIM_DIAMONDS,
+    });
 
     // Same trophy-screen flourish as finishing a level: petals burst, then
     // the coin and gem icons fly up in turn with a collect chime each.
@@ -298,8 +304,11 @@ export default function DailyChallengePage() {
             />
 
             {/* Header */}
-            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-4">
-              <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
+            <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
+              <Link
+                href="/"
+                className="flex items-center gap-2 text-white/80 transition hover:text-white"
+              >
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Daily Challenge</span>
               </Link>
@@ -332,7 +341,10 @@ export default function DailyChallengePage() {
                     </div>
                     {streak > 0 && (
                       <div className="mt-0.5 flex items-center gap-1 text-[8px] font-bold text-orange-300">
-                        <><Flame className="h-3.5 w-3.5 fill-orange-400 text-orange-300" /> {streak}-day streak</>
+                        <>
+                          <Flame className="h-3.5 w-3.5 fill-orange-400 text-orange-300" />{" "}
+                          {streak}-day streak
+                        </>
                       </div>
                     )}
                   </div>
@@ -341,7 +353,8 @@ export default function DailyChallengePage() {
                 <div className="flex items-center gap-1.5 rounded-full border border-pink-300/25 bg-[#2a1024]/70 px-2.5 py-1.5">
                   <GiftIcon className="h-4 w-4" />
                   <span className="text-[9px] font-bold text-pink-100">
-                    Next reward in {hoursLeft}h {String(minutesLeft).padStart(2, "0")}m{" "}
+                    Next reward in {hoursLeft}h{" "}
+                    {String(minutesLeft).padStart(2, "0")}m{" "}
                     {String(secondsLeft).padStart(2, "0")}s
                   </span>
                 </div>
@@ -352,13 +365,17 @@ export default function DailyChallengePage() {
                 {weekDays.map((d, i) => {
                   const key = dateKey(d);
                   const isToday = key === todayKey;
-                  const isPast = d < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  const isPast =
+                    d <
+                    new Date(now.getFullYear(), now.getMonth(), now.getDate());
                   const done = Boolean(dailyLog[key] || freeClaimLog[key]);
                   const kind = DAY_REWARD_KIND[i];
 
                   return (
                     <div key={key} className="flex flex-col items-center gap-1">
-                      <span className={`text-[7px] font-bold uppercase tracking-wide ${isToday ? "text-yellow-200/90" : done ? "text-emerald-200/60" : "text-white/35"}`}>
+                      <span
+                        className={`text-[7px] font-bold uppercase tracking-wide ${isToday ? "text-yellow-200/90" : done ? "text-emerald-200/60" : "text-white/35"}`}
+                      >
                         {DAY_LABELS[i]}
                       </span>
 
@@ -376,11 +393,18 @@ export default function DailyChallengePage() {
                         {done ? (
                           <CheckCircleIcon className="h-6 w-6" />
                         ) : isToday ? (
-                          <span className="text-[13px] font-black text-[#241300]">{d.getDate()}</span>
+                          <span className="text-[13px] font-black text-[#241300]">
+                            {d.getDate()}
+                          </span>
                         ) : isPast ? (
-                          <span className="text-[10px] font-bold text-white/30">{d.getDate()}</span>
+                          <span className="text-[10px] font-bold text-white/30">
+                            {d.getDate()}
+                          </span>
                         ) : (
-                          <LockIcon className="h-3.5 w-3.5 text-white/25" strokeWidth={2.2} />
+                          <LockIcon
+                            className="h-3.5 w-3.5 text-white/25"
+                            strokeWidth={2.2}
+                          />
                         )}
                       </div>
 
@@ -419,22 +443,28 @@ export default function DailyChallengePage() {
                 <div className="mt-2.5 flex items-center gap-3">
                   <PuzzlePreview />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-black text-white">Level {todayLevel}</div>
-                    <div className="mt-0.5 text-[10px] text-white/55">Sort every tube by colour</div>
+                    <div className="text-sm font-black text-white">
+                      Level {displayedLevel}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-white/55">
+                      Sort every tube by colour
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-3 flex items-center gap-2">
                   <div className="flex items-center gap-1 rounded-full border border-yellow-400/25 bg-[#08243a] px-2.5 py-1 text-[10px] font-bold text-yellow-200">
-                    <HomeCoinIcon className="h-3.5 w-3.5" /> +{isTodayDone ? todayEntry.coins : previewCoins}
+                    <HomeCoinIcon className="h-3.5 w-3.5" /> +
+                    {isTodayDone ? todayEntry.coins : previewCoins}
                   </div>
                   <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#08243a] px-2.5 py-1 text-[10px] font-bold text-purple-200">
-                    <HomeGemIcon className="h-3.5 w-3.5" /> +{isTodayDone ? todayEntry.diamonds : previewDiamonds}
+                    <HomeGemIcon className="h-3.5 w-3.5" /> +
+                    {isTodayDone ? todayEntry.diamonds : previewDiamonds}
                   </div>
                 </div>
 
                 <Link
-                  href={`/gameplay?level=${todayLevel}&difficulty=normal`}
+                  href={`/gameplay?level=${displayedLevel}&difficulty=normal&daily=${todayKey}`}
                   prefetch
                   className="mt-3.5 flex h-11 w-full items-center justify-center rounded-full border border-emerald-300/60 bg-gradient-to-b from-[#4ee08a] to-[#0a9e52] text-sm font-black text-[#052014] shadow-[0_4px_16px_rgba(20,200,120,0.22)] transition duration-200 hover:brightness-110 active:scale-[0.99]"
                 >
@@ -445,8 +475,16 @@ export default function DailyChallengePage() {
               {/* Free daily claim */}
               <div className="relative mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-yellow-300/25 bg-gradient-to-r from-[#3a2a06]/70 to-[#06243a]/70 px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur">
                 {claimCelebrate && <CelebrationPetals />}
-                <FlyingRewards active={claimCoinFly} Icon={HomeCoinIcon} count={6} />
-                <FlyingRewards active={claimGemFly} Icon={HomeGemIcon} count={4} />
+                <FlyingRewards
+                  active={claimCoinFly}
+                  Icon={HomeCoinIcon}
+                  count={6}
+                />
+                <FlyingRewards
+                  active={claimGemFly}
+                  Icon={HomeGemIcon}
+                  count={4}
+                />
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3a2a06]/80 text-lg ring-1 ring-yellow-300/30">
                     <GiftIcon className="h-9 w-9" />
@@ -457,10 +495,12 @@ export default function DailyChallengePage() {
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-[10px] font-bold text-white/70">
                       <span className="inline-flex items-center gap-1">
-                        <HomeCoinIcon className="h-3.5 w-3.5" /> +{FREE_CLAIM_COINS}
+                        <HomeCoinIcon className="h-3.5 w-3.5" /> +
+                        {FREE_CLAIM_COINS}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <HomeGemIcon className="h-3.5 w-3.5" /> +{FREE_CLAIM_DIAMONDS}
+                        <HomeGemIcon className="h-3.5 w-3.5" /> +
+                        {FREE_CLAIM_DIAMONDS}
                       </span>
                     </div>
                   </div>
@@ -488,8 +528,9 @@ export default function DailyChallengePage() {
 
               {/* Streak explainer */}
               <p className="mt-3 px-1 text-center text-[9px] leading-relaxed text-white/35">
-                Claim your daily gift or complete the daily puzzle to mark that day complete.
-                Keep the streak alive for 7 days to earn the bonus gift.
+                Claim your daily gift or complete the daily puzzle to mark that
+                day complete. Keep the streak alive for 7 days to earn the bonus
+                gift.
               </p>
             </section>
 
@@ -514,8 +555,14 @@ function PuzzlePreview() {
           className="flex w-2.5 flex-col-reverse gap-[2px] rounded-full border border-white/15 bg-white/5 p-[2px]"
           style={{ height: i % 2 === 0 ? "100%" : "78%" }}
         >
-          <span className="aspect-square w-full rounded-full" style={{ background: c }} />
-          <span className="aspect-square w-full rounded-full" style={{ background: c, opacity: i === 2 ? 0.35 : 0.9 }} />
+          <span
+            className="aspect-square w-full rounded-full"
+            style={{ background: c }}
+          />
+          <span
+            className="aspect-square w-full rounded-full"
+            style={{ background: c, opacity: i === 2 ? 0.35 : 0.9 }}
+          />
         </div>
       ))}
     </div>

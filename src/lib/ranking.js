@@ -199,7 +199,6 @@ export function useRanking() {
   const [profile, setProfile] = useState({ name: "Player", avatar: null });
   const [stats, setStats] = useState({ score: 0, cleared: 0, stars: 0, byDiff: { normal: 0, hard: 0, expert: 0 }, dailyDays: 0, city: computeCityProgress({}) });
   const [week, setWeek] = useState(null);
-  const [tick, setTick] = useState(0);
   const [records, setRecords] = useState([]);
 
   useEffect(() => {
@@ -213,7 +212,6 @@ export function useRanking() {
       const nextDaily = read("sortverse-daily-completed", {});
       setWeek({ ...weekInfo(), baseline: Math.max(0, nextStats.score - computeWeeklyRealScore(nextRecords, nextDaily)), weekly: computeWeeklyRealScore(nextRecords, nextDaily) });
       setRecords(nextRecords);
-      setTick((v) => v + 1);
     };
     sync();
     const timer = window.setInterval(sync, 1000);
@@ -232,7 +230,7 @@ export function useRanking() {
 
   const data = useMemo(() => ({
     ...stats, name: profile.name, avatar: profile.avatar, week: week || weekInfo(), lastWeek: null, online: false, performance: computePerformance(records),
-  }), [stats, profile, week, records, tick]);
+  }), [stats, profile, week, records]);
 
   const boards = useMemo(() => {
     if (!week) return null;

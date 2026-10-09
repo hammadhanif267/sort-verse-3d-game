@@ -34,21 +34,9 @@ export function usePlayerStats() {
   const [stats, setStats] = useState(DEFAULT_STATS);
 
   useEffect(() => {
-    // Every player starts completely fresh: Level 1 unlocked (nothing
-    // cleared yet), 0 coins, 0 diamonds, and an unclaimed daily reward —
-    // exactly like a real game. This also runs once for anyone who already
-    // has state from the earlier test build (seeded at Level 5), wiping it
-    // back to a true fresh start.
+    // Preserve legacy saves. Older builds reset balances when a marker was
+    // missing; doing so after a native restore would silently destroy progress.
     if (!window.localStorage.getItem(APP_RESET_KEY)) {
-      window.localStorage.removeItem("sortverse-level-stars");
-      window.localStorage.removeItem("sortverse-level-rewards");
-      window.localStorage.removeItem("sortverse-difficulty-progress");
-      window.localStorage.removeItem("sortverse-daily-completed");
-      window.localStorage.removeItem("sortverse-daily-free-claim");
-      window.localStorage.removeItem("sortverse-daily-streak-bonus");
-      window.localStorage.setItem(STORAGE_KEYS.level, "0");
-      window.localStorage.setItem(STORAGE_KEYS.coins, "0");
-      window.localStorage.setItem(STORAGE_KEYS.diamonds, "0");
       window.localStorage.setItem(APP_RESET_KEY, "1");
     }
 
@@ -92,21 +80,23 @@ export function usePlayerStats() {
   }
 
   function addRewards({ coins = 0, diamonds = 0 } = {}) {
+    // Read at mutation time: boosters, free claims, and win rewards can
+    // happen before React has committed the previous stats render.
     persist({
-      ...stats,
-      coins: stats.coins + coins,
-      diamonds: stats.diamonds + diamonds,
+      level: readNumber(STORAGE_KEYS.level, 0),
+      coins: Math.max(0, readNumber(STORAGE_KEYS.coins, 0) + coins),
+      diamonds: Math.max(0, readNumber(STORAGE_KEYS.diamonds, 0) + diamonds),
     });
   }
 
   function completeLevel({ level = null, coins = 0, diamonds = 0 } = {}) {
     const nextLevel = Number.isFinite(Number(level))
-      ? Math.max(stats.level, Number(level))
-      : stats.level + 1;
+      ? Math.max(readNumber(STORAGE_KEYS.level, 0), Number(level))
+      : readNumber(STORAGE_KEYS.level, 0) + 1;
     persist({
       level: nextLevel,
-      coins: stats.coins + coins,
-      diamonds: stats.diamonds + diamonds,
+      coins: Math.max(0, readNumber(STORAGE_KEYS.coins, 0) + coins),
+      diamonds: Math.max(0, readNumber(STORAGE_KEYS.diamonds, 0) + diamonds),
     });
   }
 

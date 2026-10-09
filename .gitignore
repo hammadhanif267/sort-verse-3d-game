@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Android signing secrets: NEVER commit these.
+android/keystore.properties
+**/*.jks
+**/*.keystore
+*.key
+
+# Android/Gradle generated outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+

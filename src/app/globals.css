@@ -281,3 +281,9 @@ button, a { touch-action: manipulation; }
   .sv-load-logo, .sv-load-tube { animation: none; }
   .sv-load-bar::after, .sv-load-dots::after { animation: none; }
 }
+
+/* Native Chromium exposes CSS safe-area env() on API 36 with viewport-fit=cover.
+   BottomNav already adds its own bottom inset; don't double-pad it. */
+.native-device { color-scheme: dark; }
+.native-device main { padding-top: 0; padding-bottom: 0; }
+.native-device button, .native-device a { touch-action: manipulation; }

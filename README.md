@@ -1,36 +1,17 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SortVerse 3D
 
-## Getting Started
+An offline-first sorting puzzle with 36 levels (Normal, Hard, Expert), daily challenges, avatar customization, achievements, a city and local performance records. Built with Next.js App Router, React, Tailwind CSS and Three.js, packaged on Android with Capacitor.
 
-First, run the development server:
-
-```bash
+```sh
+npm install        # required first time: update the older lockfile for Capacitor
+npm ci             # only AFTER npm install has updated package-lock.json
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run test:logic  # dependency-free reward/backup checks
+npm run lint
+npm run build          # static assets in out/
+npm run build:android  # once Android is installed and configured
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No game server, account or database is required. Progress lives on-device; export a progress code from Settings before uninstalling or changing devices. The default Android application ID in `capacitor.config.json` is a **placeholder**: change and confirm it before creating any release build. See `docs/ANDROID_RELEASE.md`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For **Windows CMD** extraction and setup, see [docs/WINDOWS_CMD_SETUP.md](docs/WINDOWS_CMD_SETUP.md).
