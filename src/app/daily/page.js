@@ -358,16 +358,16 @@ export default function DailyChallengePage() {
 
                   return (
                     <div key={key} className="flex flex-col items-center gap-1">
-                      <span className="text-[7px] font-bold uppercase tracking-wide text-white/35">
+                      <span className={`text-[7px] font-bold uppercase tracking-wide ${isToday ? "text-yellow-200/90" : done ? "text-emerald-200/60" : "text-white/35"}`}>
                         {DAY_LABELS[i]}
                       </span>
 
                       <div
                         className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition ${
-                          isToday
-                            ? "border-yellow-300/80 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_0_14px_rgba(255,180,0,0.4)]"
-                            : done
-                              ? "border-emerald-400/40 bg-[#0c3a2a]"
+                          done
+                            ? "border-emerald-300/70 bg-gradient-to-b from-[#1f8a56] to-[#0c4a2f] shadow-[0_0_12px_rgba(52,211,153,0.35)]"
+                            : isToday
+                              ? "border-yellow-300/80 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_0_14px_rgba(255,180,0,0.4)]"
                               : isPast
                                 ? "border-white/10 bg-[#08131e] opacity-50"
                                 : "border-white/10 bg-[#08131e]"
@@ -384,7 +384,8 @@ export default function DailyChallengePage() {
                         )}
                       </div>
 
-                      {!isToday && !done && !isPast && (
+                      {/* Reward preview under every claimed day and every upcoming day */}
+                      {done || (!isToday && !isPast) ? (
                         <span className="flex h-[9px] w-[9px] items-center justify-center leading-none">
                           {kind === "gift" ? (
                             <GiftIcon className="h-[9px] w-[9px]" />
@@ -394,9 +395,9 @@ export default function DailyChallengePage() {
                             <HomeCoinIcon className="h-[9px] w-[9px]" />
                           )}
                         </span>
+                      ) : (
+                        <span className="h-[9px]" />
                       )}
-                      {!isToday && !done && isPast && <span className="h-[9px]" />}
-                      {(isToday || done) && <span className="h-[9px]" />}
                     </div>
                   );
                 })}
