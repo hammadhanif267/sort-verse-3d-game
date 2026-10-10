@@ -59,6 +59,9 @@ export function computeCityProgress(starsMap) {
     }
   });
 
+  // Derived entirely from existing save data: no migration or extra claims.
+  const beaconsLit = DIFFICULTIES.reduce((count, difficulty) =>
+    count + [3, 6, 9, 12].filter((id) => Number(starsMap[`${difficulty}-${id}`]) > 0).length, 0);
   const cappedStars = Math.min(totalStars, CITY_MAX_STARS);
 
   let cityLevel = 1;
@@ -81,6 +84,8 @@ export function computeCityProgress(starsMap) {
 
   return {
     totalStars,
+    beaconsLit,
+    maxBeacons: 12,
     maxStars: CITY_MAX_STARS,
     cityLevel,
     maxCityLevel: CITY_MAX_LEVEL,

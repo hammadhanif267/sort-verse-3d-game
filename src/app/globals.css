@@ -287,3 +287,95 @@ button, a { touch-action: manipulation; }
 .native-device { color-scheme: dark; }
 .native-device main { padding-top: 0; padding-bottom: 0; }
 .native-device button, .native-device a { touch-action: manipulation; }
+
+/* -------- Optional offline visual themes --------
+   Only background art and neutral UI surfaces are recoloured. Game pieces,
+   star ratings, rewards, warning colors and city-stage images retain their
+   original palette, keeping puzzles readable and game rules unchanged. */
+:root[data-sortverse-theme="forest"] {
+  --background: #05140f;
+  --sv-screen-bg: #05140f;
+  --sv-device-bg: #08241c;
+  --sv-stage-top: #103b30;
+  --sv-stage-bottom: #061410;
+  --sv-stage-glow: rgba(44, 196, 131, .2);
+  --sv-accent: #6de6ad;
+  --sv-panel-bg: rgba(12, 51, 39, .96);
+  --sv-chip-bg: rgba(15, 62, 47, .95);
+  --sv-art-hue: 115deg;
+}
+:root[data-sortverse-theme="royal"] {
+  --background: #100a1f;
+  --sv-screen-bg: #100a1f;
+  --sv-device-bg: #160f2b;
+  --sv-stage-top: #39245f;
+  --sv-stage-bottom: #100a1f;
+  --sv-stage-glow: rgba(163, 92, 255, .22);
+  --sv-accent: #d0a2ff;
+  --sv-panel-bg: rgba(41, 25, 68, .96);
+  --sv-chip-bg: rgba(56, 32, 86, .95);
+  --sv-art-hue: 55deg;
+}
+:root[data-sortverse-theme="sunset"] {
+  --background: #1a0e0c;
+  --sv-screen-bg: #1a0e0c;
+  --sv-device-bg: #241510;
+  --sv-stage-top: #583021;
+  --sv-stage-bottom: #1b0f0c;
+  --sv-stage-glow: rgba(255, 161, 76, .20);
+  --sv-accent: #ffc080;
+  --sv-panel-bg: rgba(62, 33, 24, .96);
+  --sv-chip-bg: rgba(77, 42, 30, .95);
+  --sv-art-hue: 195deg;
+}
+
+:root[data-sortverse-theme="forest"] .sv-screen,
+:root[data-sortverse-theme="royal"] .sv-screen,
+:root[data-sortverse-theme="sunset"] .sv-screen { background-color: var(--sv-screen-bg); }
+
+:root[data-sortverse-theme="forest"] .sv-stage,
+:root[data-sortverse-theme="royal"] .sv-stage,
+:root[data-sortverse-theme="sunset"] .sv-stage {
+  background: radial-gradient(circle at 50% 24%, var(--sv-stage-glow), transparent 45%),
+    linear-gradient(180deg, var(--sv-stage-top), var(--sv-stage-bottom));
+}
+:root[data-sortverse-theme="forest"] .sv-frame,
+:root[data-sortverse-theme="royal"] .sv-frame,
+:root[data-sortverse-theme="sunset"] .sv-frame {
+  border-color: color-mix(in srgb, var(--sv-accent) 42%, transparent);
+  box-shadow: 0 0 46px color-mix(in srgb, var(--sv-accent) 16%, transparent);
+}
+:root[data-sortverse-theme="forest"] .sv-phone,
+:root[data-sortverse-theme="royal"] .sv-phone,
+:root[data-sortverse-theme="sunset"] .sv-phone { background-color: var(--sv-device-bg); }
+
+:root[data-sortverse-theme="forest"] .sv-theme-panel,
+:root[data-sortverse-theme="royal"] .sv-theme-panel,
+:root[data-sortverse-theme="sunset"] .sv-theme-panel {
+  background: var(--sv-panel-bg);
+  border-color: color-mix(in srgb, var(--sv-accent) 18%, transparent);
+}
+:root[data-sortverse-theme="forest"] .sv-theme-chip,
+:root[data-sortverse-theme="royal"] .sv-theme-chip,
+:root[data-sortverse-theme="sunset"] .sv-theme-chip {
+  background: var(--sv-chip-bg);
+  border-color: color-mix(in srgb, var(--sv-accent) 28%, transparent);
+}
+:root[data-sortverse-theme="forest"] .sv-theme-nav,
+:root[data-sortverse-theme="royal"] .sv-theme-nav,
+:root[data-sortverse-theme="sunset"] .sv-theme-nav {
+  background: var(--sv-device-bg);
+  border-top-color: color-mix(in srgb, var(--sv-accent) 22%, transparent);
+}
+:root[data-sortverse-theme="forest"] .sv-theme-art,
+:root[data-sortverse-theme="royal"] .sv-theme-art,
+:root[data-sortverse-theme="sunset"] .sv-theme-art {
+  filter: hue-rotate(var(--sv-art-hue)) saturate(.9);
+}
+
+:root[data-sortverse-theme="forest"] .sv-theme-choice[aria-pressed="true"],
+:root[data-sortverse-theme="royal"] .sv-theme-choice[aria-pressed="true"],
+:root[data-sortverse-theme="sunset"] .sv-theme-choice[aria-pressed="true"] {
+  border-color: var(--sv-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sv-accent) 52%, transparent);
+}

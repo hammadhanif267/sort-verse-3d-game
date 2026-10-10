@@ -278,13 +278,13 @@ export default function RankingPage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
+              className="sv-theme-art pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
               style={{ backgroundImage: "url('/gameplay-factory.webp')" }}
             />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
@@ -295,11 +295,11 @@ export default function RankingPage() {
                 <span className="text-sm font-bold">Ranking</span>
               </Link>
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[10px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#06243a] px-2 py-1 text-[10px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -308,7 +308,7 @@ export default function RankingPage() {
 
             <section className="game-scroll relative z-10 min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {/* Player / league card */}
-              <div className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center gap-3">
                   <PreviewableAvatar name={data ? data.name : "You"} you size={46} avatar={data ? data.avatar : null} />
                   <div className="min-w-0 flex-1">
@@ -320,7 +320,7 @@ export default function RankingPage() {
                         onChange={(e) => setDraft(e.target.value)}
                         onBlur={saveName}
                         onKeyDown={(e) => e.key === "Enter" && saveName()}
-                        className="w-full rounded-lg border border-cyan-300/30 bg-[#031a2a] px-2 py-1 text-sm font-black outline-none"
+                        className="w-full rounded-lg border border-cyan-300/30 sv-theme-panel bg-[#031a2a] px-2 py-1 text-sm font-black outline-none"
                       />
                     ) : (
                       <button
@@ -359,7 +359,7 @@ export default function RankingPage() {
                     [FlagIcon, "Cleared", data ? data.cleared : 0],
                     [ChartIcon, "This week", data?.week?.weekly ?? 0],
                   ].map(([Icon, label, value]) => (
-                    <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 py-1.5 text-center">
+                    <div key={label} className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 py-1.5 text-center">
                       <div className="flex items-center justify-center gap-1 text-[13px] font-black">
                         <Icon className="h-4 w-4" />
                         {value}
@@ -371,7 +371,7 @@ export default function RankingPage() {
               </div>
 
               {/* Personal performance */}
-              <section className="mt-3 rounded-2xl border border-cyan-300/15 bg-[#04182a]/75 p-3">
+              <section className="mt-3 rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/75 p-3">
                 <div className="mb-2">
                   <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">My Performance</div>
                   <div className="mt-0.5 text-[10px] text-white/35">Your best runs, streaks and progress</div>
@@ -397,7 +397,7 @@ export default function RankingPage() {
                   </div>
                 </div>
 
-                <div className="flex rounded-xl border border-white/8 bg-[#031a2a]/80 p-0.5">
+                <div className="flex rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 p-0.5">
                   {TABS.map(([key, label]) => {
                     const Icon = key === "scores" ? TrophyGoldIcon : key === "streak" ? Flame : BarChart3;
                     return (
@@ -411,7 +411,7 @@ export default function RankingPage() {
                 {performanceTab === "scores" && (
                   <div className="mt-2 space-y-1.5">
                     {data?.performance?.topScores?.length ? data.performance.topScores.map((r, index) => (
-                      <div key={r.id || `${r.completedAt}-${index}`} className="group w-full rounded-xl border border-white/8 bg-[#031a2a]/80 px-3 py-2.5 text-left transition hover:border-cyan-300/30 hover:bg-[#06243a]">
+                      <div key={r.id || `${r.completedAt}-${index}`} className="group w-full rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 px-3 py-2.5 text-left transition hover:border-cyan-300/30 hover:sv-theme-chip bg-[#06243a]">
                         <div className="flex items-start gap-2">
                           <span className="mt-0.5 w-12 text-center text-[10px] font-black text-yellow-300">Level {r.level}</span>
                           <Avatar name={data?.name || "Player"} you size={30} avatar={data?.avatar || null} />
@@ -457,7 +457,7 @@ export default function RankingPage() {
                       [BarChart3, "Average score", data?.performance?.averageScore ?? 0],
                       [Flame, "Best streak", data?.performance?.bestStreak ?? 0],
                     ].map(([Icon, label, value]) => (
-                      <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 p-2.5"><Icon className="h-4 w-4 text-cyan-300" /><div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div><div className="text-[9px] font-bold uppercase text-white/35">{label}</div></div>
+                      <div key={label} className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 p-2.5"><Icon className="h-4 w-4 text-cyan-300" /><div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div><div className="text-[9px] font-bold uppercase text-white/35">{label}</div></div>
                     ))}
                   </div>
                 )}
@@ -466,8 +466,8 @@ export default function RankingPage() {
 
             {selectedPerformance && (
               <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/65 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-4">
-                <div className="w-full max-w-[390px] max-h-[calc(100dvh-24px)] overflow-y-auto overscroll-contain rounded-[26px] border border-cyan-300/25 bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)] sm:max-h-[calc(100dvh-32px)]">
-                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#061b2b]/95 px-4 py-3 backdrop-blur-md">
+                <div className="w-full max-w-[390px] max-h-[calc(100dvh-24px)] overflow-y-auto overscroll-contain rounded-[26px] border border-cyan-300/25 sv-theme-panel bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)] sm:max-h-[calc(100dvh-32px)]">
+                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 sv-theme-panel bg-[#061b2b]/95 px-4 py-3 backdrop-blur-md">
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200">{selectedPerformance.isOverall ? "Overall Performance" : "Performance Receipt"}</div>
                       <div className="mt-0.5 text-[10px] text-white/40">{selectedPerformance.isOverall ? "Your complete gameplay progress" : "Your real gameplay result"}</div>
@@ -476,7 +476,7 @@ export default function RankingPage() {
                   </div>
 
                   <div className="p-4">
-                    <div className="rounded-2xl border border-cyan-300/15 bg-[#08263b] p-4">
+                    <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#08263b] p-4">
                       <div className="text-center text-lg font-black tracking-wide">SORTVERSE 3D</div>
                       <div className="mt-0.5 text-center text-[9px] font-bold uppercase tracking-[0.16em] text-white/35">{selectedPerformance.isOverall ? "Overall Performance Receipt" : "Performance Receipt"}</div>
                       <div className="my-4 h-px bg-white/10" />
@@ -495,21 +495,21 @@ export default function RankingPage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">League</div><div className="mt-1 text-sm font-black" style={{ color: receiptDetails(selectedPerformance).league === league.name ? league.color : undefined }}>{receiptDetails(selectedPerformance).league} League</div></div>
-                        <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">{selectedPerformance.isOverall ? "Current Status" : "Difficulty"}</div><div className="mt-1 text-sm font-black">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage}` : String(selectedPerformance.difficulty || "normal").toUpperCase()}</div></div>
-                        <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">City Progress</div><div className="mt-1 text-sm font-black text-cyan-200">Stage {receiptDetails(selectedPerformance).stage} · City Level {receiptDetails(selectedPerformance).cityLevel}</div></div>
-                        <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Stars</div><div className="mt-1 text-sm font-black">⭐ {receiptDetails(selectedPerformance).stars}{selectedPerformance.isOverall ? " total" : " / 3"}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">League</div><div className="mt-1 text-sm font-black" style={{ color: receiptDetails(selectedPerformance).league === league.name ? league.color : undefined }}>{receiptDetails(selectedPerformance).league} League</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">{selectedPerformance.isOverall ? "Current Status" : "Difficulty"}</div><div className="mt-1 text-sm font-black">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage}` : String(selectedPerformance.difficulty || "normal").toUpperCase()}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">City Progress</div><div className="mt-1 text-sm font-black text-cyan-200">Stage {receiptDetails(selectedPerformance).stage} · City Level {receiptDetails(selectedPerformance).cityLevel}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Stars</div><div className="mt-1 text-sm font-black">⭐ {receiptDetails(selectedPerformance).stars}{selectedPerformance.isOverall ? " total" : " / 3"}</div></div>
                         {selectedPerformance.isOverall ? (
                           <>
-                            <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Games Played</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).gamesPlayed}</div></div>
-                            <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Best Score</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).bestScore.toLocaleString()}</div></div>
-                            <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Average</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).averageScore.toLocaleString()}</div></div>
-                            <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Streak</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).currentStreak} / {receiptDetails(selectedPerformance).bestStreak}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Games Played</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).gamesPlayed}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Best Score</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).bestScore.toLocaleString()}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Average</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).averageScore.toLocaleString()}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Streak</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).currentStreak} / {receiptDetails(selectedPerformance).bestStreak}</div></div>
                           </>
                         ) : (
-                          <div className="rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Moves</div><div className="mt-1 text-sm font-black">{selectedPerformance.moves ?? "Not recorded"}</div></div>
+                          <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Moves</div><div className="mt-1 text-sm font-black">{selectedPerformance.moves ?? "Not recorded"}</div></div>
                         )}
-                        <div className="col-span-2 rounded-xl border border-white/8 bg-[#031a2a]/70 p-2.5"><div className="flex items-center gap-1.5 text-[9px] uppercase text-white/35"><CalendarDays className="h-3 w-3" /> {selectedPerformance.isOverall ? "Modes" : "Completed"}</div><div className="mt-1 text-[11px] font-bold">{selectedPerformance.isOverall ? `Normal ${receiptDetails(selectedPerformance).normal} · Hard ${receiptDetails(selectedPerformance).hard} · Expert ${receiptDetails(selectedPerformance).expert}` : formatPerformanceDate(selectedPerformance.completedAt)}</div></div>
+                        <div className="col-span-2 rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="flex items-center gap-1.5 text-[9px] uppercase text-white/35"><CalendarDays className="h-3 w-3" /> {selectedPerformance.isOverall ? "Modes" : "Completed"}</div><div className="mt-1 text-[11px] font-bold">{selectedPerformance.isOverall ? `Normal ${receiptDetails(selectedPerformance).normal} · Hard ${receiptDetails(selectedPerformance).hard} · Expert ${receiptDetails(selectedPerformance).expert}` : formatPerformanceDate(selectedPerformance.completedAt)}</div></div>
                         <div className="col-span-2 rounded-xl border border-cyan-300/10 bg-cyan-300/5 p-2.5"><div className="text-[9px] uppercase text-cyan-200/45">Performance summary</div><div className="mt-1 text-[10px] font-bold leading-relaxed text-white/70">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage} · City Level ${receiptDetails(selectedPerformance).cityLevel}, in the ${receiptDetails(selectedPerformance).league} League, with ${receiptDetails(selectedPerformance).gamesPlayed} gameplay performances, ${receiptDetails(selectedPerformance).stars} total stars, a best score of ${receiptDetails(selectedPerformance).bestScore.toLocaleString()} points, and a ${receiptDetails(selectedPerformance).currentStreak}-day current streak.` : `${receiptDetails(selectedPerformance).player} completed Level ${selectedPerformance.level} in Stage ${receiptDetails(selectedPerformance).stage} (${String(selectedPerformance.difficulty || "normal").toUpperCase()}) with ${selectedPerformance.stars ?? 0} stars, ${selectedPerformance.moves ?? "unrecorded"} moves, and a score of ${Number(selectedPerformance.score || 0).toLocaleString()} points.`}</div></div>
                       </div>
                     </div>

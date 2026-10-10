@@ -10,7 +10,8 @@
     "build:android": "next build && npx cap sync android",
     "android:init": "npx cap add android && node scripts/configure-android.mjs",
     "android:configure": "node scripts/configure-android.mjs",
-    "test:logic": "node scripts/test-offline-logic.mjs"
+    "test:logic": "node scripts/test-offline-logic.mjs && node scripts/test-theme.mjs && npm run test:campaign && node scripts/test-sort-moves.mjs && node scripts/test-generated-boards.mjs",
+    "test:campaign": "node scripts/test-campaign.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

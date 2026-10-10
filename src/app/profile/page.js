@@ -247,13 +247,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
+              className="sv-theme-art pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
               style={{ backgroundImage: "url('/gameplay-factory.webp')" }}
             />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
@@ -264,11 +264,11 @@ export default function ProfilePage() {
                 <span className="text-sm font-bold">Profile</span>
               </Link>
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[10px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#06243a] px-2 py-1 text-[10px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
 
             <section className="relative z-10 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
               {/* Identity */}
-              <div className="rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-4 text-center shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 text-center shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex justify-center">
                   <div className="relative">
                     <button type="button" onClick={() => (avatar?.preset || avatar?.photo || avatar?.sourcePhoto ? setAvatarViewerOpen(true) : setAvatarPickerOpen(true))} className="block" aria-label="Open profile avatar">
@@ -286,7 +286,7 @@ export default function ProfilePage() {
                       </div>
                     </button>
                     {/* Camera icon: pick a photo from the device */}
-                    <button type="button" onClick={selectProfilePhoto} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 bg-[#0c3a58] text-white active:scale-90" aria-label="Upload profile photo">
+                    <button type="button" onClick={selectProfilePhoto} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/40 sv-theme-chip bg-[#0c3a58] text-white active:scale-90" aria-label="Upload profile photo">
                       <Camera className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -314,7 +314,7 @@ export default function ProfilePage() {
                     onChange={(e) => setDraft(e.target.value)}
                     onBlur={save}
                     onKeyDown={(e) => e.key === "Enter" && save()}
-                    className="mt-2 w-40 rounded-lg border border-cyan-300/30 bg-[#031a2a] px-2 py-1 text-center text-sm font-black outline-none"
+                    className="mt-2 w-40 rounded-lg border border-cyan-300/30 sv-theme-panel bg-[#031a2a] px-2 py-1 text-center text-sm font-black outline-none"
                   />
                 ) : (
                   <button
@@ -337,7 +337,7 @@ export default function ProfilePage() {
                     ["Levels", data ? data.cleared : 0],
                     ["Stars", data ? data.stars : 0],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-xl border border-white/8 bg-[#031a2a]/80 py-2">
+                    <div key={label} className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 py-2">
                       <div className="text-sm font-black text-cyan-200">{value}</div>
                       <div className="text-[10px] font-bold uppercase text-white/35">{label}</div>
                     </div>
@@ -346,7 +346,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Avatar selection */}
-              <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
+              <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 p-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Profile Avatar</div>
@@ -369,7 +369,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress per difficulty */}
-              <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
+              <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 p-3.5">
                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Level Progress</div>
                 <div className="mt-2 space-y-2">
                   {DIFFS.map(([key, label, color]) => (
@@ -391,7 +391,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Achievements */}
-              <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
+              <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 p-3.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">Achievements</span>
                   <span className="text-[10px] font-bold text-yellow-200">
@@ -404,7 +404,7 @@ export default function ProfilePage() {
                     return (
                       <div
                         key={b.title}
-                        className={`relative overflow-hidden rounded-2xl border px-2 py-2.5 text-center transition ${b.done ? "border-yellow-300/35 bg-[linear-gradient(180deg,rgba(83,59,8,.72),rgba(25,25,24,.72))] shadow-[inset_0_1px_0_rgba(255,255,255,.05)]" : "border-white/8 bg-[#031a2a]/76"}`}
+                        className={`relative overflow-hidden rounded-2xl border px-2 py-2.5 text-center transition ${b.done ? "border-yellow-300/35 bg-[linear-gradient(180deg,rgba(83,59,8,.72),rgba(25,25,24,.72))] shadow-[inset_0_1px_0_rgba(255,255,255,.05)]" : "border-white/8 sv-theme-panel bg-[#031a2a]/76"}`}
                       >
                         <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border ${b.done ? "border-yellow-200/35 bg-yellow-300/10 shadow-[0_0_18px_rgba(255,194,26,.10)]" : "border-white/8 bg-white/[.025]"}`}><Icon tone={b.tone} className={`h-7 w-7 ${b.done ? "" : "opacity-30 grayscale"}`} /></div>
                         <div className="mt-0.5 text-[10px] font-black leading-tight">{b.title}</div>
@@ -438,7 +438,7 @@ export default function ProfilePage() {
               </div>
 
               {/* League roadmap */}
-              <div className="rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 p-3.5">
+              <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 p-3.5">
                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200/70">League Roadmap</div>
                 <div className="mt-2 space-y-1.5">
                   {LEAGUES.map((l) => {
@@ -478,8 +478,8 @@ export default function ProfilePage() {
 
             {avatarPickerOpen && (
               <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/80 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-sm">
-                <div className="max-h-[92dvh] w-full max-w-[430px] overflow-y-auto rounded-[28px] border border-cyan-300/20 bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
-                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#041522]/95 px-4 py-3 backdrop-blur">
+                <div className="max-h-[92dvh] w-full max-w-[430px] overflow-y-auto rounded-[28px] border border-cyan-300/20 sv-theme-panel bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
+                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 sv-theme-panel bg-[#041522]/95 px-4 py-3 backdrop-blur">
                     <div><div className="text-sm font-black">Choose Profile Avatar</div><div className="text-[10px] text-white/40">Girl, boy, upload, or selfie.</div></div>
                     <button type="button" onClick={() => setAvatarPickerOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/70" aria-label="Close avatar picker"><X className="h-4 w-4" /></button>
                   </div>
@@ -508,7 +508,7 @@ export default function ProfilePage() {
 
             {cameraOpen && (
               <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-                <div className="w-full max-w-[410px] overflow-hidden rounded-[28px] border border-cyan-300/20 bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
+                <div className="w-full max-w-[410px] overflow-hidden rounded-[28px] border border-cyan-300/20 sv-theme-panel bg-[#041522] shadow-[0_20px_80px_rgba(0,0,0,.6)]">
                   <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
                     <div>
                       <div className="text-sm font-black">Create Selfie Avatar</div>

@@ -7,6 +7,7 @@ import { TimerIcon } from "@/components/icons";
 import { Pause, Play } from "lucide-react";
 import { playIntroChime } from "@/lib/sound";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
+import { getMission } from "@/lib/levelMissions";
 
 // How long the intro chime is given before the gameplay loop fades in.
 const GAMEPLAY_MUSIC_DELAY_MS = 1400;
@@ -22,7 +23,7 @@ function formatTime(totalSeconds) {
 function GameplayContent() {
   const searchParams = useSearchParams();
   const levelParam = Number(searchParams.get("level"));
-  const level = Number.isFinite(levelParam) && levelParam > 0 ? levelParam : 1;
+  const level = Number.isFinite(levelParam) && levelParam > 0 ? Math.min(12, Math.floor(levelParam)) : 1;
   const dailyDate = searchParams.get("daily");
   const difficultyParam = searchParams.get("difficulty");
   const difficulty = ["normal", "hard", "expert"].includes(difficultyParam) ? difficultyParam : "normal";
@@ -34,6 +35,7 @@ function GameplayContent() {
 
 function GameplaySession({ level, difficulty, dailyDate }) {
   const router = useRouter();
+  const mission = getMission(difficulty, level);
   const [timeLeft, setTimeLeft] = useState(() => difficultyParams(level, difficulty).timeSeconds);
   const [paused, setPaused] = useState(false);
 
@@ -68,19 +70,19 @@ function GameplaySession({ level, difficulty, dailyDate }) {
   });
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
       {/* Desktop background */}
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
         {/* Ambient glow */}
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/5 blur-[110px]" />
 
         {/* Phone */}
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_50px_rgba(0,180,255,0.16)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020b15]">
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_50px_rgba(0,180,255,0.16)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020b15]">
             {/* Defocused factory interior behind the board */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-cover bg-center"
+              className="sv-theme-art pointer-events-none absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: "url('/gameplay-background.webp')" }}
             />
 
@@ -101,7 +103,7 @@ function GameplaySession({ level, difficulty, dailyDate }) {
                 type="button"
                 onClick={togglePause}
                 aria-label={paused ? "Resume" : "Pause"}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/30 bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/30 sv-theme-chip bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
               >
                 {paused ? <Play className="h-5 w-5 fill-current" strokeWidth={2.4} /> : <Pause className="h-5 w-5 fill-current" strokeWidth={2.4} />}
               </button>
@@ -111,23 +113,23 @@ function GameplaySession({ level, difficulty, dailyDate }) {
                 <div className="text-xl font-black tracking-tight">Level {level}</div>
 
                 <div className="mt-0.5 text-[10px] font-medium text-cyan-100/75">
-                  Sort the objects
+                  {mission.title}
                 </div>
               </div>
 
               {/* Timer */}
               <div
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold shadow-[0_0_18px_rgba(0,190,255,0.14)] backdrop-blur-md ${
-                  timeLeft <= 15
+                  timeLeft != null && timeLeft <= 15
                     ? "border-red-400/40 bg-[#3a0808]/90 text-red-200"
-                    : "border-cyan-300/30 bg-[#06243a]/90"
+                    : "border-cyan-300/30 sv-theme-chip bg-[#06243a]/90"
                 }`}
               >
                 <TimerIcon
                   strokeWidth={2.4}
                   className={`h-3.5 w-3.5 shrink-0 ${timeLeft <= 15 ? "text-red-300" : "text-cyan-300"}`}
                 />
-                <span>{formatTime(timeLeft)}</span>
+                <span>{timeLeft == null ? "Relax" : formatTime(timeLeft)}</span>
               </div>
             </header>
 

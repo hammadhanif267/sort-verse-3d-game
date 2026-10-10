@@ -287,15 +287,15 @@ export default function DailyChallengePage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
         <div className="pointer-events-none absolute left-1/2 top-[20%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-pink-500/5 blur-[110px]" />
 
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
+              className="sv-theme-art pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
               style={{ backgroundImage: "url('/gameplay-factory.webp')" }}
             />
             <div
@@ -314,11 +314,11 @@ export default function DailyChallengePage() {
               </Link>
 
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
                   <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
                   <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -327,9 +327,9 @@ export default function DailyChallengePage() {
 
             <section className="relative z-10 flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-4 py-4">
               {/* Streak summary strip */}
-              <div className="flex items-center justify-between rounded-2xl border border-cyan-300/15 bg-[#04182a]/85 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.3)] backdrop-blur">
+              <div className="flex items-center justify-between rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.3)] backdrop-blur">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0c3a58]/70 ring-1 ring-cyan-300/20">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full sv-theme-chip bg-[#0c3a58]/70 ring-1 ring-cyan-300/20">
                     <CalendarIcon className="h-5 w-5" />
                   </div>
                   <div>
@@ -428,7 +428,7 @@ export default function DailyChallengePage() {
               </div>
 
               {/* Today's puzzle */}
-              <div className="mt-4 rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="mt-4 rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200/70">
                     Today&apos;s Puzzle
@@ -548,7 +548,7 @@ export default function DailyChallengePage() {
 function PuzzlePreview() {
   const cols = ["#1d6fe0", "#d6202f", "#f0c018", "#22a72f"];
   return (
-    <div className="flex h-14 w-16 shrink-0 items-end justify-center gap-1 rounded-2xl border border-white/10 bg-[#031a2a] p-1.5">
+    <div className="flex h-14 w-16 shrink-0 items-end justify-center gap-1 rounded-2xl border border-white/10 sv-theme-panel bg-[#031a2a] p-1.5">
       {cols.map((c, i) => (
         <div
           key={c}

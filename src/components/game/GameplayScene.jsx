@@ -12,6 +12,8 @@ import { computeScore, getLeague } from "@/lib/ranking";
 import { calculateLevelAward } from "@/lib/rewards";
 import { vibrate } from "@/lib/native";
 import { scatter } from "@/lib/visualRandom";
+import { getMission, getStarRating } from "@/lib/levelMissions";
+import { applySortMove, findBestHint, isSorted } from "@/lib/sortMoves";
 
 /* =========================================================
    SORTVERSE
@@ -62,7 +64,6 @@ const TUBE_COLORS = {
 };
 
 const TOTAL_TUBES = 8;
-const TRIPLE_BONUS_COINS = 15;
 const PALETTE_ORDER = ["blue", "red", "yellow", "green", "purple"];
 const SHAPE_BY_COLOR = {
   blue: "sphere",
@@ -71,63 +72,31 @@ const SHAPE_BY_COLOR = {
   green: "triangle",
   purple: "diamond",
 };
-const DIFFICULTY_TIER = { normal: 0, hard: 1, expert: 2 };
 
-/* =========================================================
-   DIFFICULTY SCALING
-   - colorCount: how many colors are in play (more = harder)
-   - emptyTubes: spare tubes to maneuver with (fewer = harder)
-   - timeSeconds: time budget for the HUD countdown
-   Normal stays gentle (caps at 4 colors), Hard and Expert push
-   further so each tier reads as noticeably tougher than the last.
-========================================================= */
+// The campaign specifies its own colors, space, timer and mechanic mix.
+// The first tutorial levels have no countdown and high tiers have humane timers.
 export function difficultyParams(level, difficulty) {
-  const tierIndex = DIFFICULTY_TIER[difficulty] ?? 0;
-  const progression = Math.min(Math.floor((level - 1) / 4), 2);
-
-  // Colors still rise with level/difficulty to keep things progressively
-  // harder.
-  const normalColors = [3, 4, 5][progression];
-  const colorCount = Math.min(
-    tierIndex === 0 ? normalColors : tierIndex === 1 ? Math.min(4 + progression, 5) : 5,
-    5,
-  );
-
-  const baseEmptyByTier = [3, 2, 1];
-  const emptyTubes = Math.min(
-    Math.max(baseEmptyByTier[tierIndex] - progression, 1),
-    TOTAL_TUBES - colorCount,
-  );
-
-  const baseSecondsByTier = [90, 75, 60];
-  const decayPerLevelByTier = [2, 3, 4];
-  const minSecondsByTier = [45, 35, 25];
-  const timeSeconds = Math.max(
-    minSecondsByTier[tierIndex],
-    baseSecondsByTier[tierIndex] - (level - 1) * decayPerLevelByTier[tierIndex],
-  );
-
-  // Obstacle mechanics, re-enabled with the destructive bugs fixed
-  // (bombs/Triple Burst no longer delete objects — see GameplayScene) and
-  // introduced the way a polished match/sort game paces them:
-  //   Normal — none at all, so new players never get an unfair surprise.
-  //   Hard   — one gentle mechanic (frozen) from the start, chains added
-  //            in the back half once the player has the hang of it.
-  //   Expert — everything, from level 1, at the toughest counts.
-  // Chains/frozen selection always keeps at least 3 completely free
-  // copies of that color elsewhere (see generatePuzzle), so every locked
-  // piece is always demonstrably releasable — the level can never be
-  // stuck waiting on a piece the player has no way to reach.
-  const isBackHalf = level > 6;
-  const mechanics =
-    tierIndex === 0
-      ? { chains: false, chainLayers: 1, bombs: false, frozen: false, tripleBurst: false }
-      : tierIndex === 1
-      ? { chains: isBackHalf, chainLayers: 1, bombs: false, frozen: true, tripleBurst: true }
-      : { chains: true, chainLayers: 1, bombs: true, frozen: true, tripleBurst: true };
-
-  return { colorCount, emptyTubes, timeSeconds, mechanics };
+  const mission = getMission(difficulty, level);
+  const features = mission.features;
+  return {
+    colorCount: mission.colorCount,
+    emptyTubes: mission.emptyTubes,
+    timeSeconds: mission.timeSeconds,
+    mechanics: {
+      chains: features.includes("chains"),
+      chainLayers: features.includes("doubleChain") ? 2 : 1,
+      bombs: features.includes("bombs"),
+      frozen: features.includes("frozen"),
+      frozenCount: features.includes("doubleIce") ? 2 : 1,
+      tripleBurst: features.includes("tripleBurst"),
+      golden: features.includes("golden"),
+      key: features.includes("key"),
+      mystery: features.includes("mystery"),
+      timeBonus: features.includes("timeBonus"),
+    },
+  };
 }
+
 function hashSeed(text) {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -156,20 +125,21 @@ function mulberry32(seed) {
 // or one whose top already matches). States are canonicalised (tubes are
 // interchangeable, so we compare them as a sorted multiset) which collapses
 // huge amounts of symmetry and keeps the search small for these board
-// sizes. This only checks the underlying colors — obstacle pieces
-// (chains/frozen/bombs) are proven safe separately, by construction, in
-// generatePuzzle below.
-function isColorLayoutSolvable(slotColorArrays, budget = 45000) {
+// sizes. It only proves the underlying color arrangement. The rescue
+// mechanic supplies a safe escape from an impossible obstacle situation.
+function findColorSortLength(slotColorArrays, budget = 45000) {
   const isSolved = (tubes) => tubes.every((t) => t.length === 0 || (t.length === CAPACITY && t.every((c) => c === t[0])));
   const canonicalKey = (tubes) => tubes.map((t) => t.join(",")).sort().join("|");
 
-  if (isSolved(slotColorArrays)) return true;
+  if (isSolved(slotColorArrays)) return 0;
   const visited = new Set([canonicalKey(slotColorArrays)]);
   let frontier = [slotColorArrays];
   let states = 0;
+  let depth = 0;
 
   while (frontier.length && states < budget) {
     const next = [];
+    depth += 1;
     for (const tubesState of frontier) {
       for (let i = 0; i < tubesState.length; i++) {
         if (!tubesState[i].length) continue;
@@ -184,19 +154,19 @@ function isColorLayoutSolvable(slotColorArrays, budget = 45000) {
           candidate[i].pop();
           candidate[j].push(moving);
           states++;
-          if (isSolved(candidate)) return true;
+          if (isSolved(candidate)) return depth;
           const key = canonicalKey(candidate);
           if (!visited.has(key)) {
             visited.add(key);
             next.push(candidate);
           }
-          if (states >= budget) return false;
+          if (states >= budget) return null;
         }
       }
     }
     frontier = next;
   }
-  return false;
+  return null;
 }
 
 function dealColors({ colorCount, nonEmptyCount, level, difficulty, seedAttempt }) {
@@ -221,6 +191,41 @@ function dealColors({ colorCount, nonEmptyCount, level, difficulty, seedAttempt 
   return { slots, rng, colors };
 }
 
+// Construct a solvable fallback by scrambling a solved board with inverse
+// legal moves. Reversing the recorded steps is a valid color-sort solution.
+// This prevents the bounded search's "unknown" result from shipping as a
+// possibly unsolvable random board.
+function reverseScramble({ colorCount, nonEmptyCount, level, difficulty }) {
+  const rng = mulberry32(hashSeed(`reverse:${difficulty}:${level}`));
+  const slots = Array.from({ length: TOTAL_TUBES }, (_, i) => i < colorCount
+    ? Array(CAPACITY).fill(PALETTE_ORDER[i]) : []);
+  const reversePath = [];
+  for (let turn = 0; turn < 32; turn++) {
+    const choices = [];
+    const occupied = slots.filter((tube) => tube.length > 0).length;
+    for (let from = 0; from < slots.length; from++) {
+      const source = slots[from];
+      if (source.length < 2 || source.at(-1) !== source.at(-2)) continue;
+      for (let to = 0; to < slots.length; to++) {
+        if (from === to || slots[to].length >= CAPACITY) continue;
+        if (!slots[to].length && occupied >= nonEmptyCount) continue;
+        // Favor mixing: reverse moves should create new decisions.
+        const score = slots[to].length && slots[to].at(-1) !== source.at(-1) ? 3 : 1;
+        choices.push({ from, to, score: score + rng() });
+      }
+    }
+    if (!choices.length) break;
+    choices.sort((a,b) => b.score - a.score);
+    const pick = choices[Math.floor(rng() * Math.min(choices.length, 5))];
+    const piece = slots[pick.from].pop();
+    slots[pick.to].push(piece);
+    reversePath.push(pick);
+  }
+  // Starting states have at most colorCount occupied stacks; the first
+  // reverse move onto an empty tube introduces the requested extra stack.
+  return { slots: slots.filter((tube) => tube.length), upperBound: reversePath.length };
+}
+
 function generatePuzzle({ level, difficulty }) {
   const { colorCount, emptyTubes, mechanics } = difficultyParams(level, difficulty);
   const nonEmptyCount = TOTAL_TUBES - emptyTubes;
@@ -232,20 +237,24 @@ function generatePuzzle({ level, difficulty }) {
   const MAX_ATTEMPTS = 5;
   let chosenColorSlots = null;
   let chosenAttempt = 0;
+  let provenMoves = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const { slots: colorSlots } = dealColors({ colorCount, nonEmptyCount, level, difficulty, seedAttempt: attempt });
-    if (isColorLayoutSolvable(colorSlots)) {
+    const solutionLength = findColorSortLength(colorSlots);
+    if (solutionLength != null) {
+      provenMoves = solutionLength;
       chosenColorSlots = colorSlots;
       chosenAttempt = attempt;
       break;
     }
   }
-  // Every attempt failed the bounded search (extremely unlikely at these
-  // sizes) — fall back to the last shuffle anyway rather than crash; a
-  // deeper search would very likely have proven it solvable too.
+  // If the bounded solver cannot prove a random layout, construct a known
+  // solvable color layout using reversible moves instead of guessing.
   if (!chosenColorSlots) {
-    chosenColorSlots = dealColors({ colorCount, nonEmptyCount, level, difficulty, seedAttempt: MAX_ATTEMPTS - 1 }).slots;
-    chosenAttempt = MAX_ATTEMPTS - 1;
+    const fallback = reverseScramble({ colorCount, nonEmptyCount, level, difficulty });
+    chosenColorSlots = fallback.slots;
+    chosenAttempt = MAX_ATTEMPTS;
+    provenMoves = fallback.upperBound;
   }
 
   const rng = mulberry32(hashSeed(`${difficulty}:${level}:${chosenAttempt}:dress`));
@@ -254,10 +263,9 @@ function generatePuzzle({ level, difficulty }) {
     slot.map((color, i) => ({ id: `${color}-${i}-${level}-${difficulty}-${Math.floor(rng() * 1e9)}`, color, type: SHAPE_BY_COLOR[color] })),
   );
 
-  // Add special pieces with solvability guarantees. Every chain color keeps
-  // at least three completely free copies elsewhere, so a locked piece can
-  // always be released by a real 3-of-a-kind match. Chain/frozen pieces are
-  // never stacked on the same colour, and bomb pieces avoid reserved colors.
+  // Add overlays without changing the underlying solvable colors. One chain
+  // per color leaves three free copies; a one-use rescue can clear blockers
+  // if a player's moves leave an unreachable piece.
   const candidates = [];
   slots.forEach((slot, slotIndex) => {
     slot.forEach((object, objectIndex) => {
@@ -271,13 +279,16 @@ function generatePuzzle({ level, difficulty }) {
 
   const reservedColors = new Set();
   const usedObjects = new Set();
-  const chooseSpecial = (count, predicate) => {
+  const chooseSpecial = (count, predicate, distinctColors = false) => {
     const chosen = [];
+    const colorsUsed = new Set(reservedColors);
     for (const candidate of candidates) {
       if (chosen.length >= count) break;
       if (usedObjects.has(candidate.object.id)) continue;
+      if (distinctColors && colorsUsed.has(candidate.object.color)) continue;
       if (!predicate(candidate.object)) continue;
       chosen.push(candidate);
+      colorsUsed.add(candidate.object.color);
       usedObjects.add(candidate.object.id);
     }
     return chosen;
@@ -295,46 +306,15 @@ function generatePuzzle({ level, difficulty }) {
       reservedColors.add(object.color);
     });
 
-    // Make every chain colour demonstrably solvable. Pull the four copies of
-    // that colour out, then put the chained copy plus the three free copies
-    // on top of four different tubes. No copy is buried behind another ball.
-    chainPicks.forEach(({ object: chainObject }) => {
-      const chainColor = chainObject.color;
-      const chainObjects = [];
-      slots.forEach((slot) => {
-        for (let i = slot.length - 1; i >= 0; i -= 1) {
-          if (slot[i].color === chainColor) chainObjects.push(slot.splice(i, 1)[0]);
-        }
-      });
+    // Leave the colored layout unchanged. Moving locked colors to other
+    // tubes invalidated the proven solution to the underlying board.
+    // An optional one-time rescue can remove blockers without losing progress.
 
-      const freeObjects = chainObjects.filter((item) => item.id !== chainObject.id && !item.chainLayers && !item.frozen);
-      const ordered = [chainObject, ...freeObjects.slice(0, 3)];
-      const targets = slots
-        .map((slot, index) => ({ index, room: CAPACITY - slot.length }))
-        .filter((entry) => entry.room > 0)
-        .sort((a, b) => b.room - a.room)
-        .slice(0, ordered.length);
-
-      ordered.forEach((item, index) => {
-        const target = targets[index];
-        if (target) slots[target.index].push(item);
-      });
-
-      // In the unlikely event a reserved copy could not be placed by the
-      // safety pass, put it back into the first tube with room rather than
-      // dropping an object from the puzzle.
-      const placedIds = new Set(ordered.slice(0, targets.length).map((item) => item.id));
-      chainObjects.forEach((item) => {
-        if (placedIds.has(item.id)) return;
-        const fallback = slots.find((slot) => slot.length < CAPACITY);
-        if (fallback) fallback.push(item);
-      });
-    });
   }
 
   if (mechanics.frozen) {
-    const frozenCount = difficulty === "expert" ? 2 : 1;
-    const frozenPicks = chooseSpecial(frozenCount, (object) => !reservedColors.has(object.color));
+    const frozenCount = mechanics.frozenCount;
+    const frozenPicks = chooseSpecial(frozenCount, (object) => !reservedColors.has(object.color), true);
     frozenPicks.forEach(({ object }) => {
       object.frozen = true;
       reservedColors.add(object.color);
@@ -342,11 +322,26 @@ function generatePuzzle({ level, difficulty }) {
   }
 
   if (mechanics.bombs) {
-    const bombCount = difficulty === "expert" ? 2 : 1;
-    const bombPicks = chooseSpecial(bombCount, (object) => !reservedColors.has(object.color));
+    const bombCount = difficulty === "expert" && level >= 8 ? 2 : 1;
+    const bombPicks = chooseSpecial(bombCount, (object) => !reservedColors.has(object.color), true);
     bombPicks.forEach(({ object }) => {
-      object.bombTurns = difficulty === "expert" ? 5 : 6;
+      object.bombTurns = difficulty === "expert" ? 9 : 11;
     });
+  }
+
+  // A key mission seals one spare tube until a triple is formed; completing
+  // the target-color tube separately claims a once-per-run bonus vault.
+  const targetColor = (mechanics.golden || mechanics.key)
+    ? (colors.find((color) => !reservedColors.has(color)) || colors[0])
+    : null;
+  if (getMission(difficulty, level).features.includes("rainbow")) {
+    const helpful = slots.map((slot) => slot.at(-1)).find((item) => item && !item.frozen && !item.chainLayers && item.bombTurns == null);
+    if (helpful) helpful.rainbow = true;
+  }
+  if (mechanics.mystery) {
+    // One hidden piece can be revealed by progress. Its real color never changes.
+    const mysterious = slots.map((slot) => slot.at(-1)).find((item) => item && !item.frozen && !item.chainLayers && item.bombTurns == null);
+    if (mysterious) mysterious.mystery = true;
   }
 
   // Extremely unlikely, but guard against dealing an already-solved board.
@@ -388,7 +383,21 @@ function generatePuzzle({ level, difficulty }) {
     [allTubes[i], allTubes[j]] = [allTubes[j], allTubes[i]];
   }
 
-  return allTubes.map((tube, index) => ({ ...tube, id: index }));
+  if (mechanics.key) {
+    // A real locked spare tube: form a triple of the key color to unlock it.
+    // The rescue ability can always free it if a player runs out of moves.
+    const spare = allTubes.find((tube) => tube.objects.length === 0);
+    if (spare) spare.sealed = true;
+  }
+  return {
+    tubes: allTubes.map((tube, index) => ({ ...tube, id: index })),
+    // Baseline is the shortest proven color-only solution; give extra slack
+    // for special mechanics, which may demand additional matching moves.
+    par: Math.max(provenMoves ?? 22, colorCount * 4) +
+      (mechanics.frozen ? 6 : 0) + (mechanics.chains ? 8 : 0) + (mechanics.bombs ? 3 : 0),
+    targetColor,
+    solverVerified: provenMoves != null,
+  };
 }
 
 /**
@@ -516,15 +525,18 @@ export default function GameplayScene({
   paused = false,
   onTogglePause,
 }) {
+  const mission = getMission(difficulty, level);
   const { timeSeconds: initialTime, mechanics } = difficultyParams(level, difficulty);
+  const [board] = useState(() => generatePuzzle({ level, difficulty }));
 
-  const [tubes, setTubes] = useState(() => generatePuzzle({ level, difficulty }));
+  const [tubes, setTubes] = useState(() => board.tubes);
+  const openingTip = useMemo(() => mission.difficulty === "normal" && mission.id <= 2 ? findBestHint(board.tubes) : null, [board, mission.difficulty, mission.id]);
   const [selected, setSelected] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [dragPoint, setDragPoint] = useState(null);
   const [shakingTubeId, setShakingTubeId] = useState(null);
   const [moves, setMoves] = useState(0);
-  const [message, setMessage] = useState("Drag an object to sort it");
+  const [message, setMessage] = useState(mission.tutorial ? "Drag a top piece to a matching tube" : mission.objective);
   const [mechanicFlash, setMechanicFlash] = useState(null);
   const [pieceEffects, setPieceEffects] = useState({});
   const [tubeBursts, setTubeBursts] = useState({});
@@ -534,29 +546,23 @@ export default function GameplayScene({
   const [timeUp, setTimeUp] = useState(false);
   const [bonusCoins, setBonusCoins] = useState(0);
   const [actualReward, setActualReward] = useState(null);
-  const [undoUses, setUndoUses] = useState(1);
+  const [undoUses, setUndoUses] = useState(mission.tutorial ? 2 : 1);
+  const [comboCharge, setComboCharge] = useState(0);
+  const [rainbowUses, setRainbowUses] = useState(0);
+  const [vaultOpened, setVaultOpened] = useState(false);
+  const [rescueUses, setRescueUses] = useState(1);
   const [hintUses, setHintUses] = useState(1);
   const [undoHistory, setUndoHistory] = useState([]);
   const mechanicFlashTimer = useRef(null);
   const { addRewards, completeLevel } = usePlayerStats();
   const rewardRecorded = useRef(false);
-  const completedRef = useRef(false);
 
-  const completed = useMemo(() => {
-    return tubes.every((tube) => {
-      if (tube.objects.length === 0) return true;
+  const completed = useMemo(() => isSorted(tubes), [tubes]);
 
-      return (
-        tube.objects.length === CAPACITY &&
-        tube.objects.every((object) => object.color === tube.objects[0].color) &&
-        tube.objects.every((object) => (object.chainLayers ?? 0) === 0 && !object.frozen && object.bombTurns == null)
-      );
-    });
-  }, [tubes]);
-
-  const earnedStars = moves <= 12 ? 3 : moves <= 18 ? 2 : 1;
-  const coinReward = 100 * level + bonusCoins;
+  const earnedStars = getStarRating(moves, board.par);
+  const coinReward = mission.baseCoins + bonusCoins + (mission.chapterFinale ? 75 : 0);
   const diamondReward = earnedStars;
+  const timeIsUnlimited = initialTime == null;
 
   // Real-time countdown — ticks every second, stops on win/loss, and is
   // reported up to the page header so the HUD timer is never a static value.
@@ -565,7 +571,7 @@ export default function GameplayScene({
   }, [timeLeft, onTimeChange]);
 
   useEffect(() => {
-    if (completed || timeUp || paused) return undefined;
+    if (completed || timeUp || paused || timeIsUnlimited) return undefined;
 
     if (timeLeft <= 0) return undefined;
 
@@ -574,12 +580,11 @@ export default function GameplayScene({
       if (timeLeft <= 1) setTimeUp(true);
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [timeLeft, completed, timeUp, paused]);
+  }, [timeLeft, completed, timeUp, paused, timeIsUnlimited]);
 
   useEffect(() => {
     if (!completed || rewardRecorded.current) return;
     rewardRecorded.current = true;
-    completedRef.current = true;
     vibrate("win");
     const progressKey = "sortverse-difficulty-progress";
     const starsKey = "sortverse-level-stars";
@@ -673,8 +678,8 @@ export default function GameplayScene({
     } else {
       addRewards({ coins: awardedCoins, diamonds: awardedGems });
     }
-    showCongrats({ kind: "level", title: `Level ${level} complete`, coins: awardedCoins, diamonds: awardedGems });
-  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, dailyDate, moves, bonusCoins]);
+    showCongrats({ kind: "level", title: `${mission.title} complete`, coins: awardedCoins, diamonds: awardedGems });
+  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, dailyDate, moves, bonusCoins, mission.title]);
 
   // The trophy screen's celebration: petals launch immediately and get a
   // clear moment on their own, then the coin total and the diamond total
@@ -772,171 +777,87 @@ export default function GameplayScene({
     [paused, flashMechanic, triggerWrongMove],
   );
 
-  const handleObjectEnd = useCallback(
-    (targetTubeId) => {
-      if (!dragging) return;
-
-      const sourceTubeId = dragging.tubeId;
-
-      if (sourceTubeId === targetTubeId) {
-        triggerWrongMove(targetTubeId);
-        setDragging(null);
-        setSelected(null);
-        return;
-      }
-
-      const sourceNow = tubes.find((tube) => tube.id === sourceTubeId);
-      const targetNow = tubes.find((tube) => tube.id === targetTubeId);
-      const object = sourceNow?.objects[sourceNow.objects.length - 1];
-      const targetTop = targetNow?.objects[targetNow.objects.length - 1];
-
-      const validTarget = Boolean(
-        object &&
-        targetNow &&
-        targetNow.objects.length < CAPACITY &&
-        (!targetTop || targetTop.color === object.color),
-      );
-
-      if (!validTarget) {
-        triggerWrongMove(targetTubeId);
-        setDragging(null);
-        setSelected(null);
-        return;
-      }
-
-      const willCompleteTube =
-        targetNow.objects.length + 1 === CAPACITY &&
-        targetNow.objects.every((item) => item.color === object.color);
-      const willTriple =
-        mechanics.tripleBurst &&
-        targetNow.objects.length + 1 >= 3 &&
-        [...targetNow.objects, object].slice(-3).every((item) => item.color === object.color);
-
-      const sameColorLockedIds = tubes.flatMap((tube) =>
-        tube.objects.filter((item) => item.color === object.color && item.chainLayers > 0).map((item) => item.id),
-      );
-      const sameColorFrozenIds = tubes.flatMap((tube) =>
-        tube.objects.filter((item) => item.color === object.color && item.frozen).map((item) => item.id),
-      );
-      const tripleTail = willTriple ? [...targetNow.objects, object].slice(-3) : [];
-      const willBurstTriple = willTriple && targetNow.objects.length + 1 < CAPACITY && tripleTail.every((item) => item.chainLayers === 0 && !item.frozen);
-
-      let tripleBonusAwarded = 0;
-      let defused = false;
-
-      setUndoHistory((history) => [...history, { tubes: structuredClone(tubes), moves, bonusCoins }].slice(-12));
-      setTubes((current) => {
-        const next = current.map((tube) => ({
-          ...tube,
-          objects: tube.objects.map((item) => ({ ...item })),
-        }));
-        const source = next.find((tube) => tube.id === sourceTubeId);
-        const target = next.find((tube) => tube.id === targetTubeId);
-        if (!source || !target) return current;
-
-        const moving = source.objects.pop();
-        if (!moving) return current;
-        target.objects.push(moving);
-
-        // A matching triple breaks one chain layer and thaws frozen pieces
-        // of the same colour. A second triple can burst three free pieces,
-        // giving the game a Candy-Crush-style payoff without changing the
-        // core tube-sorting rules.
-        if (target.objects.length >= 3 && target.objects.slice(-3).every((item) => item.color === object.color)) {
-          let brokeChain = false;
-          let thawedIce = false;
-          next.forEach((tube) => {
-            tube.objects.forEach((item) => {
-              if (item.color !== object.color) return;
-              if (item.chainLayers > 0) {
-                item.chainLayers -= 1;
-                brokeChain = true;
-              }
-              if (item.frozen) {
-                item.frozen = false;
-                thawedIce = true;
-              }
-            });
-          });
-          if (brokeChain) flashMechanic(`Chain layer broken — ${object.color} unlocked!`);
-          if (thawedIce) flashMechanic(`Ice melted — ${object.color} freed!`);
-
-          // Triple Burst is a pure bonus now — it never removes objects from
-          // play (that used to leave a color short of the copies it needs to
-          // ever complete, which could make the whole level unsolvable). A
-          // "pure" triple (one that isn't also breaking a chain or thawing
-          // ice) just pays out a small coin bonus and celebrates in place.
-          if (mechanics.tripleBurst && !brokeChain && !thawedIce) {
-            const tail = target.objects.slice(-3);
-            if (tail.length === 3 && tail.every((item) => item.color === object.color)) {
-              tripleBonusAwarded = TRIPLE_BONUS_COINS;
-              flashMechanic(`Triple match! +${TRIPLE_BONUS_COINS} bonus coins`);
-            }
-          }
-        }
-
-        // Bomb fuse: every successful move advances all active bombs. A
-        // bomb that reaches zero simply defuses in place — the piece stays
-        // exactly where it is and becomes a normal, movable piece. Nothing
-        // is ever deleted, so a bomb can never leave a color short of the
-        // copies it needs to complete.
-        next.forEach((tube) => {
-          tube.objects.forEach((item) => {
-            if (item.bombTurns == null) return;
-            item.bombTurns -= 1;
-            if (item.bombTurns <= 0) {
-              item.bombTurns = null;
-              defused = true;
-            }
-          });
-        });
-        if (defused) flashMechanic("Bomb defused — piece freed!");
-
-        return next;
-      });
-
-      if (sameColorLockedIds.length && willTriple) {
-        triggerPieceEffects(sameColorLockedIds, "chain-break");
-        playChainBreakSound();
-        playKidVoice("Yay! Chain broken!");
-      }
-      if (sameColorFrozenIds.length && willTriple) { triggerPieceEffects(sameColorFrozenIds, "ice-melt"); playKidVoice("Wow! Ice melted!"); }
-      if (tripleBonusAwarded > 0) {
-        setBonusCoins((value) => value + tripleBonusAwarded);
-        triggerTubeBurst([targetTubeId], "triple");
-        playPopBurstSound();
-        playKidVoice("Pop! Bonus coins!");
-      } else if (willBurstTriple) {
-        triggerTubeBurst([targetTubeId], "triple");
-        playPopBurstSound();
-        playKidVoice("Pop! Awesome!");
-      }
-      if (defused) {
-        playBombExplosionSound();
-        playKidVoice("Bomb defused!");
-      }
-
-      playDragDropSound();
-      vibrate(willCompleteTube ? "complete" : "move");
-      if (willCompleteTube) {
-        playTubeCompleteSound();
-        playGoodVoice();
-        window.setTimeout(() => playKidVoice("Wow! Tube complete!"), 120);
-      }
-
-      setMoves((value) => value + 1);
+  const handleObjectEnd = useCallback((targetTubeId) => {
+    if (!dragging || paused || timeUp || completed) return;
+    const sourceTubeId = dragging.tubeId;
+    const result = applySortMove(tubes, sourceTubeId, targetTubeId, {
+      tripleBurst: mechanics.tripleBurst,
+      targetColor: board.targetColor,
+      vaultOpened,
+    });
+    if (!result) {
+      triggerWrongMove(targetTubeId);
       setDragging(null);
       setSelected(null);
-      setMessage(
-        willCompleteTube
-          ? "Good! Tube complete!"
-          : willTriple
-          ? (sameColorLockedIds.length ? "Chain broken!" : tripleBonusAwarded ? "Bonus triple!" : "Triple!")
-          : "Nice move!",
-      );
-    },
-    [dragging, tubes, moves, bonusCoins, triggerWrongMove, mechanics, flashMechanic, triggerPieceEffects, triggerTubeBurst],
-  );
+      return;
+    }
+
+    setUndoHistory((history) => [...history, {
+      tubes: structuredClone(tubes), moves, bonusCoins, comboCharge, rainbowUses, vaultOpened, timeLeft, rescueUses,
+    }].slice(-12));
+    setTubes(result.tubes);
+    if (result.unlockedChainIds.length) {
+      triggerPieceEffects(result.unlockedChainIds, "chain-break");
+      flashMechanic("Chain cracked! Keep matching to unlock the piece");
+      playChainBreakSound();
+      playKidVoice("Chain broken!");
+    }
+    if (result.meltedIceIds.length) {
+      triggerPieceEffects(result.meltedIceIds, "ice-melt");
+      flashMechanic("Ice shattered! Piece rescued!");
+      playKidVoice("Ice melted!");
+    }
+    if (result.tripleBonus) {
+      triggerTubeBurst([targetTubeId], "triple");
+      playPopBurstSound();
+      flashMechanic("Triple match! Bonus coins!");
+    }
+    if (result.gateUnlocked) {
+      flashMechanic("Key found! The sealed tube is unlocked!");
+      playChainBreakSound();
+    }
+    if (result.vaultUnlocked) {
+      setVaultOpened(true);
+      flashMechanic(`Golden vault opened! +45 coins`);
+      playCoinCollectSound({ pitch: 5 });
+      triggerTubeBurst([targetTubeId], "triple");
+    }
+    if (result.bombPenaltySeconds) {
+      flashMechanic(`Bomb burst! -${result.bombPenaltySeconds} seconds`);
+      setTimeLeft((left) => left == null ? left : Math.max(1, left - result.bombPenaltySeconds));
+      triggerTubeBurst([targetTubeId], "explosion");
+      playBombExplosionSound();
+    }
+    if (result.rainbowCollected) {
+      setRainbowUses((count) => count + 1);
+      flashMechanic("Rainbow helper collected! Free strategic hint!");
+    }
+    if (result.mysteryRevealed.length) {
+      triggerPieceEffects(result.mysteryRevealed, "ice-melt");
+      flashMechanic("Mystery color revealed!");
+    }
+    if (result.bonusCoins) setBonusCoins((coins) => coins + result.bonusCoins);
+    if (result.completedTube) {
+      playTubeCompleteSound();
+      playGoodVoice();
+      playKidVoice("Tube complete!");
+      // Every two completed tubes grant a FREE rainbow-powered hint.
+      if (comboCharge + 1 >= 2) {
+        setComboCharge(0);
+        setRainbowUses((count) => count + 1);
+        flashMechanic("Super Sort! Rainbow hint earned!");
+      } else setComboCharge((charge) => charge + 1);
+      if (mechanics.timeBonus) setTimeLeft((left) => left == null ? left : left + 10);
+    }
+    playDragDropSound();
+    vibrate(result.completedTube ? "complete" : "move");
+    setMoves((value) => value + 1);
+    setDragging(null);
+    setSelected(null);
+    setMessage(result.vaultUnlocked ? "Golden vault claimed!" : result.completedTube ? "Super Sort! Tube complete!" : result.triple ? "Triple! Keep going" : "Nice move!");
+  }, [dragging, paused, timeUp, completed, tubes, mechanics, board.targetColor, vaultOpened,
+      moves, bonusCoins, comboCharge, rainbowUses, timeLeft, rescueUses, triggerWrongMove,
+      triggerPieceEffects, flashMechanic, triggerTubeBurst]);
 
   const handleInvalidDrop = useCallback(() => {
     if (!dragging) return;
@@ -949,7 +870,7 @@ export default function GameplayScene({
 
   const resetGame = useCallback(() => {
     playIntroChime();
-    setTubes(generatePuzzle({ level, difficulty }));
+    setTubes(structuredClone(board.tubes));
     setSelected(null);
     setDragging(null);
     setDragPoint(null);
@@ -957,19 +878,21 @@ export default function GameplayScene({
     setPieceEffects({});
     setTubeBursts({});
     setMoves(0);
-    setMessage("Drag an object to sort it");
+    setMessage(mission.tutorial ? "Drag the top piece to a matching tube" : mission.objective);
     setCoinPlay(false);
     setGemPlay(false);
     rewardRecorded.current = false;
-    completedRef.current = false;
     setTimeLeft(initialTime);
     setTimeUp(false);
     setBonusCoins(0);
     setActualReward(null);
-    setUndoUses(1);
+    setUndoUses(mission.tutorial ? 2 : 1);
+    setComboCharge(0);
+    setRainbowUses(0);
+    setVaultOpened(false);
     setHintUses(1);
     setUndoHistory([]);
-  }, [level, difficulty, initialTime]);
+  }, [board, initialTime, mission.tutorial, mission.objective]);
 
   function spendBooster(kind) {
     const count = kind === "undo" ? undoUses : hintUses;
@@ -992,31 +915,39 @@ export default function GameplayScene({
     setTubes(last.tubes);
     setMoves(last.moves);
     setBonusCoins(last.bonusCoins);
+    setComboCharge(last.comboCharge ?? 0);
+    setRainbowUses(last.rainbowUses ?? 0);
+    setVaultOpened(last.vaultOpened ?? false);
+    setRescueUses(last.rescueUses ?? 1);
+    setTimeLeft(last.timeLeft);
     setDragging(null);
     setSelected(null);
     setMessage("Last move undone");
   }
 
+  function rescueBlockedPieces() {
+    if (completed || paused || timeUp || rescueUses <= 0) return;
+    const locked = tubes.some((tube) => tube.sealed || tube.objects.some((piece) => piece.frozen || piece.chainLayers > 0));
+    if (!locked) return;
+    setUndoHistory((history) => [...history, { tubes: structuredClone(tubes), moves, bonusCoins, comboCharge, rainbowUses, vaultOpened, timeLeft, rescueUses }].slice(-12));
+    setTubes((current) => current.map((tube) => ({
+      ...tube, sealed: false, objects: tube.objects.map((piece) => ({ ...piece, frozen: false, chainLayers: 0 })),
+    })));
+    setRescueUses((uses) => uses - 1);
+    setMoves((count) => count + 3);
+    flashMechanic("Rescue activated! Ice, chains and gates cleared.");
+    vibrate("complete");
+    setMessage("Rescue used (+3 moves). Keep sorting!");
+  }
+
   function showHint() {
     if (completed || paused || timeUp) return;
-    let candidate = null;
-    for (let i = 0; i < tubes.length && !candidate; i += 1) {
-      const source = tubes[i];
-      const piece = source.objects.at(-1);
-      if (!piece || piece.frozen || piece.chainLayers > 0) continue;
-      for (let j = 0; j < tubes.length; j += 1) {
-        if (i === j) continue;
-        const target = tubes[j];
-        const top = target.objects.at(-1);
-        if (target.objects.length >= CAPACITY || (top && top.color !== piece.color)) continue;
-        if (source.objects.length === CAPACITY && source.objects.every((o) => o.color === piece.color)) continue;
-        candidate = `${i + 1} → ${j + 1} (${piece.color})`;
-        if (top) break;
-      }
-    }
-    if (!candidate) { setMessage("No available moves; try Undo"); return; }
-    if (!spendBooster("hint")) return;
-    setMessage(`Hint: tube ${candidate}`);
+    const candidate = findBestHint(tubes);
+    if (!candidate) { setMessage("No legal move. Undo or restart to try again."); return; }
+    if (rainbowUses > 0) setRainbowUses((count) => count - 1);
+    else if (!spendBooster("hint")) return;
+    setMessage(`Rainbow hint: tube ${candidate.from + 1} → ${candidate.to + 1} (${candidate.color})`);
+    flashMechanic(`Try ${candidate.from + 1} → ${candidate.to + 1}`);
   }
 
   // Drag follows the pointer; drop target is whichever tube the pointer is
@@ -1074,12 +1005,19 @@ export default function GameplayScene({
   return (
     <div ref={boardRef} className="relative h-full w-full touch-none select-none overflow-hidden bg-transparent">
       <div className="absolute inset-x-0 top-[8vh] bottom-[16vh] flex flex-col items-center justify-center gap-[1.4vh] px-3">
-        {(mechanics.chains || mechanics.frozen || mechanics.bombs || mechanics.tripleBurst) && (
-          <div className="pointer-events-none z-20 flex items-center gap-2 rounded-full border border-white/12 bg-[#041827]/80 px-3.5 py-1.5 text-[8px] font-bold uppercase tracking-wide text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="z-20 max-w-[94%] rounded-xl border border-cyan-300/20 sv-theme-panel bg-[#041827]/85 px-3 py-1.5 text-center shadow-lg backdrop-blur-sm">
+          <div className="text-[10px] font-black text-yellow-100">{mission.title} {mission.chapterFinale ? "✦" : ""}</div>
+          <div className="text-[9px] leading-snug text-white/75">{mission.objective}</div>
+          {board.targetColor && <div className="mt-0.5 text-[9px] font-bold text-yellow-300">{vaultOpened ? "Vault opened ✓" : `Golden vault: complete a ${board.targetColor} tube`}</div>}
+        </div>
+        {(mechanics.chains || mechanics.frozen || mechanics.bombs || mechanics.tripleBurst || mechanics.mystery || mechanics.key) && (
+          <div className="pointer-events-none z-20 flex items-center gap-2 rounded-full border border-white/12 sv-theme-chip bg-[#041827]/80 px-3.5 py-1.5 text-[8px] font-bold uppercase tracking-wide text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-md">
             {mechanics.chains && <span className="inline-flex items-center gap-1"><ChainIcon className="h-3 w-3" /> Chains</span>}
             {mechanics.frozen && <span className="inline-flex items-center gap-1"><Snowflake className="h-3 w-3" /> Ice</span>}
             {mechanics.bombs && <span className="inline-flex items-center gap-1"><Bomb className="h-3 w-3" /> Bombs</span>}
             {mechanics.tripleBurst && <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> Triples</span>}
+            {mechanics.key && <span>Key vault</span>}
+            {mechanics.mystery && <span>Mystery</span>}
           </div>
         )}
 
@@ -1094,6 +1032,7 @@ export default function GameplayScene({
             mechanics={mechanics}
             pieceEffects={pieceEffects}
             tubeBursts={tubeBursts}
+            guide={openingTip && moves === 0 && !paused ? openingTip : null}
           />
           <Shelf />
         </div>
@@ -1107,6 +1046,7 @@ export default function GameplayScene({
             mechanics={mechanics}
             pieceEffects={pieceEffects}
             tubeBursts={tubeBursts}
+            guide={openingTip && moves === 0 && !paused ? openingTip : null}
           />
           <Shelf />
         </div>
@@ -1114,9 +1054,19 @@ export default function GameplayScene({
       </div>
 
       {!completed && !timeUp && (
-        <div className="absolute inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-40 flex justify-center gap-3">
-          <button type="button" onClick={undoMove} disabled={paused || !undoHistory.length} className="rounded-full border border-cyan-300/40 bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Undo · {undoUses ? "Free" : "30 coins"}</button>
-          <button type="button" onClick={showHint} disabled={paused} className="rounded-full border border-yellow-300/40 bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Hint · {hintUses ? "Free" : "50 coins"}</button>
+        <div className="absolute inset-x-0 bottom-[calc(6.6rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-1.5">
+          <div className="rounded-full border border-fuchsia-300/25 bg-[#281444]/80 px-3 py-1 text-[9px] font-black text-fuchsia-100" aria-label="Combo meter">
+            Combo charge {comboCharge}/2 · Rainbow hints {rainbowUses}
+          </div>
+          {rescueUses > 0 && tubes.some((tube) => tube.sealed || tube.objects.some((piece) => piece.frozen || piece.chainLayers > 0)) && (
+            <button type="button" disabled={paused} onClick={rescueBlockedPieces} className="rounded-full border border-blue-300/40 bg-blue-950/80 px-3 py-1 text-[9px] font-bold text-blue-100 disabled:opacity-40">
+              Stuck? Rescue locks (+3 moves)
+            </button>
+          )}
+          <div className="flex justify-center gap-3">
+          <button type="button" onClick={undoMove} disabled={paused || !undoHistory.length} className="rounded-full border border-cyan-300/40 sv-theme-chip bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Undo · {undoUses ? "Free" : "30 coins"}</button>
+          <button type="button" onClick={showHint} disabled={paused} className="rounded-full border border-yellow-300/40 sv-theme-chip bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Hint · {rainbowUses ? "Rainbow" : hintUses ? "Free" : "50 coins"}</button>
+          </div>
         </div>
       )}
 
@@ -1138,7 +1088,7 @@ export default function GameplayScene({
       </div>
 
       {mechanicFlash && (
-        <div className="pointer-events-none absolute top-[13%] left-1/2 z-40 -translate-x-1/2 rounded-full border border-yellow-300/30 bg-[#061b2b]/95 px-4 py-2 text-[10px] font-black text-yellow-100 shadow-[0_0_22px_rgba(255,210,70,.22)] backdrop-blur-md">
+        <div className="pointer-events-none absolute top-[13%] left-1/2 z-40 -translate-x-1/2 rounded-full border border-yellow-300/30 sv-theme-panel bg-[#061b2b]/95 px-4 py-2 text-[10px] font-black text-yellow-100 shadow-[0_0_22px_rgba(255,210,70,.22)] backdrop-blur-md">
           {mechanicFlash}
         </div>
       )}
@@ -1147,7 +1097,7 @@ export default function GameplayScene({
           STATUS
       ================================================= */}
 
-      <div className={`pointer-events-none absolute bottom-[86px] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[9px] font-semibold backdrop-blur ${message.toLowerCase().includes("wrong") ? "border-red-400/30 bg-red-950/80 text-red-300" : message.toLowerCase().includes("good") ? "border-emerald-300/25 bg-emerald-950/70 text-emerald-200" : "border-cyan-300/15 bg-[#031a2a]/80 text-cyan-100/65"}`}>
+      <div className={`pointer-events-none absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[9px] font-semibold backdrop-blur ${message.toLowerCase().includes("wrong") ? "border-red-400/30 bg-red-950/80 text-red-300" : message.toLowerCase().includes("good") ? "border-emerald-300/25 bg-emerald-950/70 text-emerald-200" : "border-cyan-300/15 sv-theme-panel bg-[#031a2a]/80 text-cyan-100/65"}`}>
         Moves: {moves} · {message}
       </div>
 
@@ -1160,7 +1110,7 @@ export default function GameplayScene({
             : "translate-y-2 opacity-0"
         }`}
       >
-        <div className="rounded-2xl border border-cyan-300/25 bg-[#06243a]/90 px-4 py-3 text-center shadow-[0_10px_35px_rgba(0,0,0,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-cyan-300/25 sv-theme-chip bg-[#06243a]/90 px-4 py-3 text-center shadow-[0_10px_35px_rgba(0,0,0,0.5)] backdrop-blur-md">
           <div className="flex items-center justify-center gap-4">
             <span className="text-2xl font-light text-cyan-200/65">←</span>
 
@@ -1168,7 +1118,7 @@ export default function GameplayScene({
               <div className="text-sm font-black">Drag &amp; Drop</div>
 
               <div className="mt-0.5 text-[9px] font-medium text-white/60">
-                to sort the objects
+                {openingTip && mission.id <= 2 ? `Try tube ${openingTip.from + 1} → ${openingTip.to + 1}` : "to sort the objects"}
               </div>
             </div>
 
@@ -1181,7 +1131,7 @@ export default function GameplayScene({
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
           <CelebrationPetals />
 
-          <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
+          <div className="w-full rounded-3xl border border-cyan-300/30 sv-theme-chip bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
             <Trophy className="mx-auto h-11 w-11 fill-yellow-300/15 text-yellow-300" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Level Complete!</h2>
@@ -1191,11 +1141,11 @@ export default function GameplayScene({
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
+              <div className="rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
                 <div className="mt-1 flex items-center justify-center gap-1">{Array.from({ length: 3 }, (_, i) => <Star key={i} className={`h-5 w-5 ${i < earnedStars ? "fill-yellow-300 text-yellow-300" : "fill-white/10 text-white/20"}`} strokeWidth={1.6} />)}</div>
               </div>
-              <div className="relative rounded-xl border border-white/10 bg-[#041a2b]/75 px-3 py-2.5">
+              <div className="relative rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
                 <div className="mt-1 flex items-center justify-center gap-3 text-sm font-black">
                   <span className="relative inline-flex items-center gap-1.5 text-yellow-300">
@@ -1222,8 +1172,10 @@ export default function GameplayScene({
               <div className="mt-1 text-xl font-black text-cyan-300">
                 {moves}
               </div>
+              <div className="mt-1 text-[9px] text-white/50">3 stars: {board.par + 5} moves · 2 stars: {Math.ceil(board.par * 1.5) + 6}</div>
             </div>
 
+            {mission.chapterFinale && <div className="mt-2 rounded-lg border border-yellow-400/25 bg-yellow-500/10 p-2 text-xs font-bold text-yellow-100">City beacon powered! Your earned stars restore the city.</div>}
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               {level < 12 ? (
                 <Link
@@ -1242,7 +1194,7 @@ export default function GameplayScene({
               )}
               <button
                 onClick={resetGame}
-                className="rounded-xl border border-cyan-300/25 bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
+                className="rounded-xl border border-cyan-300/25 sv-theme-chip bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
               >
                 Play Again
               </button>
@@ -1291,7 +1243,7 @@ export default function GameplayScene({
 
       {paused && !completed && !timeUp && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/80 px-6 backdrop-blur-md">
-          <div className="w-full rounded-3xl border border-cyan-300/30 bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
+          <div className="w-full rounded-3xl border border-cyan-300/30 sv-theme-chip bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
             <Pause className="mx-auto h-11 w-11 fill-cyan-200/10 text-cyan-200" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Paused</h2>
@@ -1314,14 +1266,14 @@ export default function GameplayScene({
                     resetGame();
                     onTogglePause?.();
                   }}
-                  className="rounded-xl border border-cyan-300/25 bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
+                  className="rounded-xl border border-cyan-300/25 sv-theme-chip bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
                 >
                   Restart
                 </button>
 
                 <Link
                   href="/"
-                  className="flex items-center justify-center rounded-xl border border-cyan-300/25 bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
+                  className="flex items-center justify-center rounded-xl border border-cyan-300/25 sv-theme-chip bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
                 >
                   Home
                 </Link>
@@ -1334,7 +1286,7 @@ export default function GameplayScene({
       {/* Reset button */}
       <button
         onClick={resetGame}
-        className="absolute bottom-[88px] right-3 z-30 rounded-full border border-cyan-300/25 bg-[#06243a]/90 px-3 py-1.5 text-[8px] font-black text-cyan-100/80 shadow-[0_0_10px_rgba(0,190,255,0.10)] backdrop-blur transition hover:border-cyan-200/70 hover:bg-[#0b3b59] hover:text-white hover:shadow-[0_0_16px_rgba(0,190,255,0.28)] active:scale-95"
+        className="absolute bottom-[88px] right-3 z-30 rounded-full border border-cyan-300/25 sv-theme-chip bg-[#06243a]/90 px-3 py-1.5 text-[8px] font-black text-cyan-100/80 shadow-[0_0_10px_rgba(0,190,255,0.10)] backdrop-blur transition hover:border-cyan-200/70 hover:bg-[#0b3b59] hover:text-white hover:shadow-[0_0_16px_rgba(0,190,255,0.28)] active:scale-95"
       >
         Reset
       </button>
@@ -1346,7 +1298,7 @@ export default function GameplayScene({
    TUBE ROW
 ========================================================= */
 
-function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mechanics, pieceEffects, tubeBursts }) {
+function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mechanics, pieceEffects, tubeBursts, guide }) {
   return (
     <div className="relative z-10 flex w-full items-end justify-center gap-[3.2vw]">
       {tubes.map((tube) => (
@@ -1357,9 +1309,9 @@ function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mech
           dragging={dragging}
           onObjectStart={onObjectStart}
           shaking={shakingTubeId === tube.id}
-          mechanics={mechanics}
           pieceEffects={pieceEffects}
           tubeBurst={tubeBursts?.[tube.id]}
+          guide={guide}
         />
       ))}
     </div>
@@ -1405,7 +1357,7 @@ function Shelf() {
    as the reference artwork.
 ========================================================= */
 
-function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pieceEffects, tubeBurst }) {
+function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, tubeBurst, guide }) {
   const topObjectIndex = tube.objects.length - 1;
   const topObject = tube.objects[topObjectIndex];
   const tubeColor = TUBE_COLORS[tube.objects[0]?.color] || TUBE_COLORS[tube.color] || TUBE_COLORS.blue;
@@ -1421,10 +1373,13 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pie
     <div
       className="flex flex-col items-center"
       style={{
-        width: "min(20vw, 92px)",
+        width: "min(19vw, 8.6dvh, 86px)",
         animation: shaking ? "tube-shake 420ms ease-in-out" : undefined,
       }}
     >
+      <div className={`mb-1 rounded-full px-1.5 py-0.5 text-[9px] font-black ${guide?.from === tube.id ? "bg-yellow-300 text-[#142133]" : guide?.to === tube.id ? "bg-emerald-300 text-[#142133]" : "bg-slate-900/70 text-cyan-100/80"}`}>
+        {tube.id + 1}
+      </div>
       <div
         data-tube-id={tube.id}
         onPointerDown={startFromTube}
@@ -1438,6 +1393,7 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pie
         }}
       >
         {tubeBurst && <TubeBurst type={tubeBurst} />}
+        {tube.sealed && <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-lg border-2 border-yellow-300/50 bg-[#020913]/80 text-center text-[10px] font-black text-yellow-200 shadow-[0_0_14px_rgba(255,210,80,.22)]">🔒<span className="sr-only">Sealed tube</span></div>}
 
         {/* Glass barrel */}
         <div
@@ -1467,6 +1423,8 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, mechanics, pie
                   <ObjectShape type={object.type} colors={COLORS[object.color]} responsive />
                   {object.chainLayers > 0 && <ChainVisual layers={object.chainLayers} />}
                   {object.frozen && <IceVisual />}
+                  {object.rainbow && <div className="pointer-events-none absolute inset-0 rounded-full border-[3px] border-fuchsia-300/90 shadow-[0_0_12px_rgba(230,140,255,.75)]" aria-label="Rainbow helper piece" />}
+                  {object.mystery && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-full bg-slate-900/95 text-lg font-black text-yellow-200 ring-2 ring-yellow-200/60">?</div>}
                   {object.bombTurns != null && <BombVisual turns={object.bombTurns} />}
                   {pieceEffects?.[object.id] === "chain-break" && <FxBurst kind="chain" />}
                   {pieceEffects?.[object.id] === "ice-melt" && <FxBurst kind="ice" />}

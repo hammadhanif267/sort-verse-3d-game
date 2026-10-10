@@ -68,6 +68,7 @@ export default function CityPage() {
     starsIntoLevel,
     starsPerLevel,
     totalStars,
+    beaconsLit,
     maxStars,
   } = useCityProgress();
 
@@ -136,12 +137,12 @@ export default function CityPage() {
   }, [cityLevel]);
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_25%,rgba(120,0,220,0.14),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_25%,rgba(120,0,220,0.14),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
         <div className="pointer-events-none absolute left-1/2 top-[18%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-purple-500/5 blur-[100px]" />
 
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             {/* Header */}
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
               <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
@@ -150,11 +151,11 @@ export default function CityPage() {
               </Link>
 
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
 <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-cyan-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-cyan-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
 <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -211,7 +212,7 @@ export default function CityPage() {
               </div>
 
               {/* City progress */}
-              <div className="mt-4 rounded-3xl border border-cyan-300/20 bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="mt-4 rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200/70">
                     City Progress
@@ -231,6 +232,10 @@ export default function CityPage() {
                     ? `Your city is fully grown — ${totalStars} stars earned!`
                     : `${starsIntoLevel}/${starsPerLevel} stars toward Level ${cityLevel + 1}`}
                 </p>
+              </div>
+
+              <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-3 text-center text-[11px] font-black text-amber-100">
+                <Sparkles className="h-4 w-4" /> City beacons: {beaconsLit}/12 powered
               </div>
 
               {/* Explainer */}

@@ -17,7 +17,7 @@ const TABS = [
  */
 export default function BottomNav({ active }) {
   return (
-    <nav className="shrink-0 border-t border-cyan-300/10 bg-[#031421]/95 px-4 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+    <nav className="sv-theme-nav shrink-0 border-t border-cyan-300/10 bg-[#031421]/95 px-4 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
       <div className="grid grid-cols-4">
         {TABS.map((tab) => {
           const isActive = tab.key === active;

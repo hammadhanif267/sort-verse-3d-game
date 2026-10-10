@@ -8,6 +8,7 @@ import LevelArt from "@/components/LevelArt";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
+import { canEnterDifficulty, getMission } from "@/lib/levelMissions";
 
 const LEVEL_COUNT = 12;
 const DIFFICULTIES = ["normal", "hard", "expert"];
@@ -75,21 +76,19 @@ export default function LevelsPage() {
   }, []);
 
   const difficultyUnlocked = (key) => {
-    if (key === "normal") return true;
-    if (key === "hard") return progress.normal >= LEVEL_COUNT;
-    return progress.hard >= LEVEL_COUNT;
+    return canEnterDifficulty(key, progress);
   };
 
   const completed = progress[difficulty] || 0;
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
+    <main className="sv-screen h-[100dvh] w-full overflow-hidden bg-[#020912] text-white">
+      <div className="sv-stage relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_20%,rgba(0,150,220,0.16),transparent_38%),linear-gradient(180deg,#02111c_0%,#030919_100%)]">
         <div className="pointer-events-none absolute left-1/2 top-[25%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-cyan-500/5 blur-[100px]" />
 
-        <div className="relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/gameplay-factory.webp')" }} />
+        <div className="sv-frame relative h-full w-full max-w-[430px] overflow-hidden sm:h-[calc(100dvh-28px)] sm:max-h-[900px] sm:rounded-[34px] sm:border sm:border-cyan-400/30 sm:shadow-[0_0_45px_rgba(0,180,255,0.14)]">
+          <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
+            <div aria-hidden="true" className="sv-theme-art pointer-events-none absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/gameplay-factory.webp')" }} />
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.48),rgba(2,13,24,.88))]" />
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
@@ -99,11 +98,11 @@ export default function LevelsPage() {
               </Link>
 
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
                   <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
                   <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -111,7 +110,7 @@ export default function LevelsPage() {
             </header>
 
             <section className="relative z-10 shrink-0 px-4 pt-3">
-              <div className="grid grid-cols-3 overflow-hidden rounded-full border border-cyan-400/20 bg-[#041a2b] p-1">
+              <div className="grid grid-cols-3 overflow-hidden rounded-full border border-cyan-400/20 sv-theme-panel bg-[#041a2b] p-1">
                 {DIFFICULTIES.map((key) => {
                   const unlocked = difficultyUnlocked(key);
                   const active = difficulty === key;
@@ -131,6 +130,11 @@ export default function LevelsPage() {
               </div>
             </section>
 
+            <div className="relative z-10 shrink-0 px-4 pt-2 text-center text-[10px] text-cyan-100/70">
+              {difficulty === "normal" ? "Learn • Explore • Celebrate" : difficulty === "hard" ? "Unlocked after Normal 4 • Master new tricks" : "Unlocked after Hard 6 • Grand challenges"}
+              {!difficultyUnlocked("hard") && <span className="block text-yellow-200/75">Clear Normal 4 to unlock Hard</span>}
+              {difficultyUnlocked("hard") && !difficultyUnlocked("expert") && <span className="block text-yellow-200/75">Clear Hard 6 to unlock Expert</span>}
+            </div>
             <section className="relative z-10 min-h-0 flex-1 overflow-hidden px-4 py-3">
               <div className="grid h-full min-h-0 grid-cols-3 grid-rows-4 gap-x-3 gap-y-1.5">
                 {Array.from({ length: LEVEL_COUNT }, (_, index) => {
@@ -149,6 +153,7 @@ export default function LevelsPage() {
                       completed={isCompleted}
                       open={unlocked}
                       difficulty={difficulty}
+                      mission={getMission(difficulty, id)}
                     />
                   );
                 })}
@@ -168,12 +173,12 @@ const numberOutline = {
   textShadow: "0 2px 4px rgba(0,0,0,0.55)",
 };
 
-function LevelCard({ id, stars, reward, completed, open, difficulty }) {
+function LevelCard({ id, stars, reward, completed, open, difficulty, mission }) {
   if (!open) {
     return (
       <div className="flex min-h-0 flex-col items-center gap-1">
         <div
-          aria-label={`Level ${id} locked`}
+          aria-label={`${mission.title} locked`}
           className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[11px] border border-cyan-300/15 bg-[#04101c] shadow-[inset_0_0_16px_rgba(0,0,0,.5)]"
         >
           <LevelArt id={id} className="absolute inset-0 h-full w-full brightness-[0.55] saturate-[0.7]" />
@@ -182,7 +187,7 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#04101c]/80 shadow-[0_4px_14px_rgba(0,0,0,0.55)]"><LockKeyhole className="h-4 w-4 text-cyan-100/70" strokeWidth={2.3} /></span>
           </div>
         </div>
-        <span className="text-[11px] font-black text-white/50">{id}</span>
+        <span className="max-w-full truncate text-[9px] font-bold text-white/50" title={mission.title}>{mission.title}</span>
       </div>
     );
   }
@@ -192,7 +197,7 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
       <Link
         href={`/gameplay?level=${id}&difficulty=${difficulty}`}
         prefetch
-        aria-label={`Play ${difficulty} level ${id}`}
+        aria-label={`Play ${difficulty} level ${id}: ${mission.title}`}
         className={`group relative min-h-0 w-full flex-1 overflow-hidden rounded-[11px] border bg-[#04101c] transition active:scale-[0.97] ${
           completed
             ? "border-cyan-300/25 shadow-[inset_0_0_16px_rgba(0,160,230,0.05)]"
@@ -224,6 +229,7 @@ function LevelCard({ id, stars, reward, completed, open, difficulty }) {
           )}
         </div>
       </Link>
+      <span className="max-w-full truncate text-[9px] font-bold text-cyan-100/75" title={mission.title}>{mission.title}</span>
     </div>
   );
 }
