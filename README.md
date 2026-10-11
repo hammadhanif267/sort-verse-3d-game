@@ -23,3 +23,24 @@ For **Windows CMD** extraction and setup, see [docs/WINDOWS_CMD_SETUP.md](docs/W
 ## Offline visual themes
 
 From **Profile → Settings → Game theme**, choose Midnight Blue (original), Emerald, Royal Purple, or Amber Sunset. The theme updates immediately across menus, gameplay background and neutral UI panels. Puzzle-piece colours and city progress are not altered. The choice is saved as `sortverse-setting-theme`, included in progress export/import and mirrored to Capacitor Preferences with the existing offline backup system.
+
+## New offline features (October 2026)
+
+- **Journey map** (`/journey`): 36 campaign missions in three pictured floating-city worlds. Existing level progress remains unchanged.
+- **Tube Skins** (`/skins`): Six visual themes. Classic is free, Crystal and Neon use coins, Gold and Galaxy use diamonds, and Aurora is unlocked via seven completed daily puzzles in a month. Cosmetics never alter move rules.
+- **Special Missions** (`/special`): Four optional replayable skill goals with one-time bonus rewards. They do not grant their bonus in Casual Mode.
+- **Trophy Book** (`/trophies`): Six collectible achievement rewards with one-time local claims.
+- **Pip**: A new original robot guide illustration shown briefly in early tutorials. Its appearance can be disabled in Settings.
+- **Comfort & Accessibility**: Casual Mode (no timers), reduced animation, high contrast, larger text, and low graphics styling.
+- **Daily collection**: The already-existing daily attendance streak is preserved. Seven completed daily puzzles within one calendar month unlock the Aurora cosmetic.
+- **Victory polish**: Staggered stars and a next-mission preview. Hint feedback distinguishes a verified short solver route from a scored legal move.
+
+All newly added storage keys begin with `sortverse-` and are included in progress exports and the existing native Preferences mirror. No backend, database, or new secrets are required.
+
+### Verify on Windows Command Prompt
+
+```cmd
+npm ci && npm run test:logic && npm run lint && npm run build && npm run dev
+```
+
+`npm run build` exports the app into `out/`. Device performance, screenshot appearance, and all 36 obstacles remain to be tested manually. The original game layout and avatar system are unchanged. The gameplay illustrations are original SVG and existing city-stage art; the AI-generated concept storyboard supplied for review is **not** a set of ready-made interactive screens.

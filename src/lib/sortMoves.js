@@ -92,12 +92,12 @@ function quality(move, tubes) {
     (hidden ? 20 : 0) - (dest.length === 0 ? 30 : 0) + tail * 5;
 }
 
-export function findBestHint(tubes) {
+export function findHintDetails(tubes) {
   // Prefer moves on a short verified route. Bounded to keep offline phones fast.
   // Unlike a first-legal-move hint, this searches legal moves and recognizes
   // locked pieces, ice and triple unlocks. It has a scored fallback.
   const moves = legalMoves(tubes).sort((a, b) => quality(b, tubes) - quality(a, tubes));
-  if (!moves.length) return null;
+  if (!moves.length) return { move: null, verified: false };
   const options = { tripleBurst: false };
   const visited = new Set([shape(tubes)]);
   const queue = [{ board: tubes, first: null, depth: 0 }];
@@ -110,7 +110,7 @@ export function findBestHint(tubes) {
       const result = applySortMove(current.board, candidate.from, candidate.to, options);
       if (!result) continue;
       const first = current.first || candidate;
-      if (isSorted(result.tubes)) return first;
+      if (isSorted(result.tubes)) return { move: first, verified: true };
       const key = shape(result.tubes);
       if (visited.has(key)) continue;
       visited.add(key);
@@ -118,5 +118,9 @@ export function findBestHint(tubes) {
       if (queue.length > 2600) break;
     }
   }
-  return moves[0];
+  return { move: moves[0], verified: false };
+}
+
+export function findBestHint(tubes) {
+  return findHintDetails(tubes).move;
 }

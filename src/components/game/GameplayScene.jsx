@@ -13,7 +13,9 @@ import { calculateLevelAward } from "@/lib/rewards";
 import { vibrate } from "@/lib/native";
 import { scatter } from "@/lib/visualRandom";
 import { getMission, getStarRating } from "@/lib/levelMissions";
-import { applySortMove, findBestHint, isSorted } from "@/lib/sortMoves";
+import { applySortMove, findBestHint, findHintDetails, isSorted } from "@/lib/sortMoves";
+import { SKINS, selectedSkin, readValue, claimSpecial, SPECIAL_MISSIONS } from "@/lib/playerExperience";
+import GuideBuddy from "@/components/GuideBuddy";
 
 /* =========================================================
    SORTVERSE
@@ -393,8 +395,8 @@ function generatePuzzle({ level, difficulty }) {
     tubes: allTubes.map((tube, index) => ({ ...tube, id: index })),
     // Baseline is the shortest proven color-only solution; give extra slack
     // for special mechanics, which may demand additional matching moves.
-    par: Math.max(provenMoves ?? 22, colorCount * 4) +
-      (mechanics.frozen ? 6 : 0) + (mechanics.chains ? 8 : 0) + (mechanics.bombs ? 3 : 0),
+    par: Math.max(provenMoves ?? 16, 5) +
+      (mechanics.frozen ? 3 : 0) + (mechanics.chains ? 4 : 0) + (mechanics.bombs ? 1 : 0),
     targetColor,
     solverVerified: provenMoves != null,
   };
@@ -521,13 +523,17 @@ export default function GameplayScene({
   level = 1,
   difficulty = "normal",
   dailyDate = null,
+  specialId = null,
+  casual = false,
   onTimeChange,
   onCompletionChange,
   paused = false,
   onTogglePause,
 }) {
   const mission = getMission(difficulty, level);
-  const { timeSeconds: initialTime, mechanics } = difficultyParams(level, difficulty);
+  const { timeSeconds: standardTime, mechanics } = difficultyParams(level, difficulty);
+  const initialTime = casual ? null : standardTime;
+  const activeSpecial = SPECIAL_MISSIONS.find((m) => m.id === specialId && m.level === level && m.difficulty === difficulty);
   const [board] = useState(() => generatePuzzle({ level, difficulty }));
 
   const [tubes, setTubes] = useState(() => board.tubes);
@@ -553,6 +559,20 @@ export default function GameplayScene({
   const [vaultOpened, setVaultOpened] = useState(false);
   const [rescueUses, setRescueUses] = useState(1);
   const [hintUses, setHintUses] = useState(1);
+  const [hintCount, setHintCount] = useState(0);
+  const [rescueCount, setRescueCount] = useState(0);
+  const [specialWon, setSpecialWon] = useState(false);
+  const [skinId, setSkinId] = useState("classic");
+  const [showBuddy, setShowBuddy] = useState(true);
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      setSkinId(selectedSkin());
+      setShowBuddy(readValue("setting-companion", "1") !== "0");
+    });
+    const update = () => setSkinId(selectedSkin());
+    window.addEventListener("sortverse-progress", update);
+    return () => { window.cancelAnimationFrame(raf); window.removeEventListener("sortverse-progress", update); };
+  }, []);
   const [undoHistory, setUndoHistory] = useState([]);
   const mechanicFlashTimer = useRef(null);
   const { addRewards, completeLevel } = usePlayerStats();
@@ -628,6 +648,17 @@ export default function GameplayScene({
         }
       }
     }
+    if (activeSpecial) {
+      const specialPrize = claimSpecial(activeSpecial.id, {
+        difficulty, level, hintsUsed: hintCount, rescuesUsed: rescueCount,
+        stars: earnedStars, vaultOpened, timeLeft, casual,
+      });
+      if (specialPrize) {
+        awardedCoins += specialPrize.coins;
+        awardedGems += specialPrize.diamonds;
+        setSpecialWon(true);
+      }
+    }
     setActualReward({ coins: awardedCoins, diamonds: awardedGems });
     playKidVoice(awardedCoins || awardedGems ? `Level complete! You got ${awardedCoins} gold and ${awardedGems} diamonds!` : "Level complete! Nice replay!");
     window.setTimeout(() => playKidVoice("Amazing! Great job!"), 850);
@@ -680,7 +711,7 @@ export default function GameplayScene({
       addRewards({ coins: awardedCoins, diamonds: awardedGems });
     }
     showCongrats({ kind: "level", title: `${mission.title} complete`, coins: awardedCoins, diamonds: awardedGems });
-  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, dailyDate, moves, bonusCoins, mission.title]);
+  }, [completed, completeLevel, addRewards, difficulty, earnedStars, level, coinReward, dailyDate, moves, bonusCoins, mission.title, activeSpecial, hintCount, rescueCount, vaultOpened, timeLeft, casual]);
 
   // The trophy screen's celebration: petals launch immediately and get a
   // clear moment on their own, then the coin total and the diamond total
@@ -895,6 +926,9 @@ export default function GameplayScene({
     setRainbowUses(0);
     setVaultOpened(false);
     setHintUses(1);
+    setHintCount(0);
+    setRescueCount(0);
+    setSpecialWon(false);
     setUndoHistory([]);
   }, [board, initialTime, mission.tutorial, mission.objective, onCompletionChange]);
 
@@ -940,6 +974,7 @@ export default function GameplayScene({
     setTubes(rescuedTubes);
     if (isSorted(rescuedTubes)) onCompletionChange?.(true);
     setRescueUses((uses) => uses - 1);
+    setRescueCount((count) => count + 1);
     setMoves((count) => count + 3);
     flashMechanic("Rescue activated! Ice, chains and gates cleared.");
     vibrate("complete");
@@ -948,11 +983,13 @@ export default function GameplayScene({
 
   function showHint() {
     if (completed || paused || timeUp) return;
-    const candidate = findBestHint(tubes);
+    const details = findHintDetails(tubes);
+    const candidate = details.move;
     if (!candidate) { setMessage("No legal move. Undo or restart to try again."); return; }
     if (rainbowUses > 0) setRainbowUses((count) => count - 1);
     else if (!spendBooster("hint")) return;
-    setMessage(`Rainbow hint: tube ${candidate.from + 1} → ${candidate.to + 1} (${candidate.color})`);
+    setHintCount((count) => count + 1);
+    setMessage(`${details.verified ? "Solver route" : "Suggested move"}: tube ${candidate.from + 1} → ${candidate.to + 1} (${candidate.color})`);
     flashMechanic(`Try ${candidate.from + 1} → ${candidate.to + 1}`);
   }
 
@@ -1021,6 +1058,10 @@ export default function GameplayScene({
       {/* Reserve a real board area between the title and the toolbar.
           Previous absolute HUD layers overlapped the lower shelf on phones. */}
       <div className="absolute inset-x-0 top-[clamp(112px,19dvh,132px)] bottom-[calc(104px+env(safe-area-inset-bottom))] flex min-h-0 flex-col items-center justify-center gap-[clamp(5px,1dvh,10px)] px-3">
+        {showBuddy && moves === 0 && mission.tutorial && !completed && !paused && !timeUp && !shouldShowMechanics && (
+          <div className="z-20 max-w-[94%]"><GuideBuddy compact message={openingTip ? `Tap tube ${openingTip.from + 1}, then tube ${openingTip.to + 1}.` : "Tap one tube, then a matching tube. You can also drag!"} onDismiss={() => setShowBuddy(false)}/></div>
+        )}
+        {activeSpecial && !completed && <div className="pointer-events-none z-20 max-w-[95%] rounded-xl border border-violet-300/30 bg-violet-950/80 px-3 py-1.5 text-center text-[10px] leading-4 text-violet-100"><strong>{activeSpecial.name}</strong> · {activeSpecial.description}</div>}
         {(shouldShowMechanics || board.targetColor) && (
           <div className="pointer-events-none z-20 flex max-w-[95%] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/15 sv-theme-chip bg-[#041827]/85 px-3 py-1.5 text-[10px] font-semibold leading-4 text-white/85 shadow-lg backdrop-blur-sm">
             {mechanics.chains && <span className="inline-flex items-center gap-1"><ChainIcon className="h-3 w-3" /> Chains</span>}
@@ -1043,6 +1084,7 @@ export default function GameplayScene({
               mechanics={mechanics}
               pieceEffects={pieceEffects}
               tubeBursts={tubeBursts}
+              skinId={skinId}
               guide={openingTip && moves === 0 && !paused ? openingTip : null}
             />
             <Shelf />
@@ -1057,6 +1099,7 @@ export default function GameplayScene({
               mechanics={mechanics}
               pieceEffects={pieceEffects}
               tubeBursts={tubeBursts}
+              skinId={skinId}
               guide={openingTip && moves === 0 && !paused ? openingTip : null}
             />
             <Shelf />
@@ -1112,6 +1155,7 @@ export default function GameplayScene({
             <Trophy className="mx-auto h-11 w-11 fill-yellow-300/15 text-yellow-300" strokeWidth={1.8} />
 
             <h2 className="mt-3 text-2xl font-black">Level Complete!</h2>
+            {specialWon && <p className="mt-2 rounded-lg bg-violet-500/20 p-2 text-xs font-bold text-violet-100">Special Mission cleared! One-time bonus collected.</p>}
 
             <p className="mt-1 text-xs text-white/60">
               Great job! All objects are sorted.
@@ -1120,7 +1164,7 @@ export default function GameplayScene({
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
-                <div className="mt-1 flex items-center justify-center gap-1">{Array.from({ length: 3 }, (_, i) => <Star key={i} className={`h-5 w-5 ${i < earnedStars ? "fill-yellow-300 text-yellow-300" : "fill-white/10 text-white/20"}`} strokeWidth={1.6} />)}</div>
+                <div className="mt-1 flex items-center justify-center gap-1">{Array.from({ length: 3 }, (_, i) => <Star key={i} style={{animationDelay:`${250 + i * 240}ms`}} className={`sv-win-star h-5 w-5 ${i < earnedStars ? "fill-yellow-300 text-yellow-300" : "fill-white/10 text-white/20"}`} strokeWidth={1.6} />)}</div>
               </div>
               <div className="relative rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
                 <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
@@ -1152,6 +1196,7 @@ export default function GameplayScene({
               <div className="mt-1 text-[9px] text-white/50">3 stars: {board.par + 5} moves · 2 stars: {Math.ceil(board.par * 1.5) + 6}</div>
             </div>
 
+            {level < 12 && <div className="mt-2 rounded-xl border border-cyan-300/15 bg-cyan-400/10 p-2 text-[11px] leading-4 text-cyan-100">Up next: <strong>{getMission(difficulty, level + 1).title}</strong> · {getMission(difficulty, level + 1).objective}</div>}
             {mission.chapterFinale && <div className="mt-2 rounded-lg border border-yellow-400/25 bg-yellow-500/10 p-2 text-xs font-bold text-yellow-100">City beacon powered! Your earned stars restore the city.</div>}
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               {level < 12 ? (
@@ -1270,7 +1315,7 @@ export default function GameplayScene({
    TUBE ROW
 ========================================================= */
 
-function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mechanics, pieceEffects, tubeBursts, guide }) {
+function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mechanics, pieceEffects, tubeBursts, skinId, guide }) {
   return (
     <div className="relative z-10 flex w-full items-end justify-center gap-[3.2vw]">
       {tubes.map((tube) => (
@@ -1283,6 +1328,7 @@ function TubeRow({ tubes, selected, dragging, onObjectStart, shakingTubeId, mech
           shaking={shakingTubeId === tube.id}
           pieceEffects={pieceEffects}
           tubeBurst={tubeBursts?.[tube.id]}
+          skinId={skinId}
           guide={guide}
         />
       ))}
@@ -1329,10 +1375,12 @@ function Shelf() {
    as the reference artwork.
 ========================================================= */
 
-function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, tubeBurst, guide }) {
+function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, tubeBurst, skinId = "classic", guide }) {
   const topObjectIndex = tube.objects.length - 1;
   const topObject = tube.objects[topObjectIndex];
   const tubeColor = TUBE_COLORS[tube.objects[0]?.color] || TUBE_COLORS[tube.color] || TUBE_COLORS.blue;
+  const skin = SKINS.find((entry) => entry.id === skinId) || SKINS[0];
+  const styled = skin.id !== "classic";
 
   const startFromTube = (event) => {
     if (!topObject || dragging || event.button === 2) return;
@@ -1372,8 +1420,8 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, 
           className="absolute inset-x-0 bottom-0 top-[9%] overflow-hidden rounded-b-[38%] rounded-t-md"
           style={{
             background: "linear-gradient(100deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 16%, rgba(180,215,235,0.10) 46%, rgba(255,255,255,0.05) 62%, rgba(255,255,255,0.22) 100%)",
-            border: "1px solid rgba(255,255,255,0.38)",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), inset -6px 0 14px rgba(0,0,0,0.14), 0 6px 14px rgba(0,0,0,0.35)",
+            border: styled ? `2px solid ${skin.colors[0]}` : "1px solid rgba(255,255,255,0.38)",
+            boxShadow: styled ? `inset 0 0 13px ${skin.colors[1]}65,0 0 13px ${skin.colors[0]}45` : "inset 0 0 0 1px rgba(255,255,255,0.08), inset -6px 0 14px rgba(0,0,0,0.14), 0 6px 14px rgba(0,0,0,0.35)",
             pointerEvents: "none",
           }}
         >
@@ -1423,6 +1471,7 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, 
             border: "1px solid rgba(0,0,0,0.15)",
           }}
         >
+          {styled && <div className="absolute inset-0 rounded-full opacity-80" style={{background:`linear-gradient(90deg,${skin.colors[0]},${skin.colors[1]},${skin.colors[0]})`}} />}
           <div className="absolute inset-x-[10%] top-[14%] rounded-full" style={{ height: "30%", background: "rgba(255,255,255,0.55)", filter: "blur(1px)" }} />
         </div>
 

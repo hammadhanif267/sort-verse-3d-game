@@ -8,12 +8,12 @@ import { isMuted, setMuted, setMusicEnabled, setSoundEffectsEnabled } from "@/li
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { DEFAULT_THEME, THEMES, getTheme, setTheme, subscribeToTheme } from "@/lib/theme";
 
-const KEY = { sound: "sortverse-setting-sound", music: "sortverse-setting-music", vibration: "sortverse-setting-vibration" };
+const KEY = { sound: "sortverse-setting-sound", music: "sortverse-setting-music", vibration: "sortverse-setting-vibration", casual: "sortverse-setting-casual", companion: "sortverse-setting-companion", reduced: "sortverse-setting-reduced", contrast: "sortverse-setting-contrast", large: "sortverse-setting-large", low: "sortverse-setting-low" };
 
 export default function SettingsPage() {
   useBackgroundMusic("menu");
   const selectedTheme = useSyncExternalStore(subscribeToTheme, getTheme, () => DEFAULT_THEME);
-  const [settings, setSettings] = useState({ sound: true, music: true, vibration: true });
+  const [settings, setSettings] = useState({ sound: true, music: true, vibration: true, casual: false, companion: true, reduced: false, contrast: false, large: false, low: false });
   const [code, setCode] = useState("");
   const [incoming, setIncoming] = useState("");
   const [pending, setPending] = useState(null);
@@ -22,7 +22,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // Device preferences are loaded after the initial static HTML hydrates.
     const frame = window.requestAnimationFrame(() => {
-      setSettings({ sound: window.localStorage.getItem(KEY.sound) !== "0" && !isMuted(), music: window.localStorage.getItem(KEY.music) !== "0", vibration: window.localStorage.getItem(KEY.vibration) !== "0" });
+      setSettings({ sound: window.localStorage.getItem(KEY.sound) !== "0" && !isMuted(), music: window.localStorage.getItem(KEY.music) !== "0", vibration: window.localStorage.getItem(KEY.vibration) !== "0", casual: window.localStorage.getItem(KEY.casual) === "1", companion: window.localStorage.getItem(KEY.companion) !== "0", reduced: window.localStorage.getItem(KEY.reduced) === "1", contrast: window.localStorage.getItem(KEY.contrast) === "1", large: window.localStorage.getItem(KEY.large) === "1", low: window.localStorage.getItem(KEY.low) === "1" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
@@ -36,6 +36,7 @@ export default function SettingsPage() {
     window.localStorage.setItem(KEY[name], value ? "1" : "0");
     if (name === "sound") { if (value && isMuted()) setMuted(false); setSoundEffectsEnabled(value); }
     if (name === "music") setMusicEnabled(value);
+    if (["reduced", "contrast", "large", "low"].includes(name)) document.documentElement.classList.toggle(`sv-${name}`, value);
     queueMirror();
   }
   async function makeCode() {
@@ -89,6 +90,15 @@ export default function SettingsPage() {
           {[["sound", "Sound effects"], ["music", "Music"], ["vibration", "Vibration"]].map(([name, label]) => (
             <label key={name} className="flex items-center justify-between gap-4 py-2 text-sm font-bold">
               <span>{label}</span><input type="checkbox" checked={settings[name]} onChange={() => update(name)} className="h-6 w-6 accent-cyan-400" />
+            </label>
+          ))}
+        </section>
+        <section className="sv-theme-panel mt-5 space-y-3 rounded-2xl border border-white/10 bg-[#082238] p-4">
+          <h2 className="text-base font-black">Comfort &amp; Accessibility</h2>
+          <p className="text-xs leading-5 text-white/65">Casual Mode removes level timers. Special-mission prizes require standard mode.</p>
+          {[["casual", "Casual Mode · No countdown"], ["companion", "Show Pip, the guide robot"], ["large", "Larger text"], ["contrast", "High contrast"], ["reduced", "Reduced animation"], ["low", "Low graphics mode"]].map(([name, label]) => (
+            <label key={name} className="flex min-h-12 items-center justify-between gap-4 border-b border-white/5 py-2 text-sm font-semibold">
+              <span>{label}</span><input type="checkbox" checked={settings[name]} onChange={() => update(name)} className="h-6 w-6 shrink-0 accent-cyan-400" />
             </label>
           ))}
         </section>

@@ -466,7 +466,11 @@ export default function ProfilePage() {
                 {confirmReset ? "Tap again to erase ALL progress" : "Reset progress"}
               </button>
 
-              <Link href="/settings" className="mb-2 flex h-10 w-full items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">Settings and progress backup</Link>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                  <Link href="/skins" className="flex min-h-12 items-center justify-center rounded-xl border border-cyan-300/30 bg-[#0a3048] text-sm font-bold text-cyan-100">Tube Skins</Link>
+                  <Link href="/trophies" className="flex min-h-12 items-center justify-center rounded-xl border border-yellow-300/30 bg-[#382710] text-sm font-bold text-yellow-100">Trophy Book</Link>
+                </div>
+                <Link href="/settings" className="mb-2 flex h-10 w-full items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 text-xs font-bold text-cyan-100">Settings and progress backup</Link>
               <Link
                 href="/ranking"
                 prefetch

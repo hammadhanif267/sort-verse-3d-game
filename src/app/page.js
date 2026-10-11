@@ -8,7 +8,7 @@ import { PreviewableAvatar } from "@/components/AvatarPreview";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import BottomNav from "@/components/BottomNav";
 import { CalendarIcon, CityGoldIcon, HomeCoinIcon, HomeGemIcon, LevelsIcon } from "@/components/icons";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Map, Sparkles, Palette, Award } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 // Daily free gifts are tracked by the same local-date key as the Claim button
@@ -195,6 +195,11 @@ export default function HomePage() {
                 <MenuButton title="Build Your City" href="/city" purple />
               </section>
 
+              <nav aria-label="Extra game activities" className="sv-home-extras mx-auto mb-2 grid w-[94%] grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
+                {[["/journey", Map, "Journey"], ["/special", Sparkles, "Missions"], ["/skins", Palette, "Skins"], ["/trophies", Award, "Trophies"]].map(([href, Icon, title]) => (
+                  <Link key={href} href={href} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-cyan-300/20 bg-[#082741]/90 text-cyan-100"><Icon size={17}/>{title}</Link>
+                ))}
+              </nav>
               {/* Bottom navigation */}
               <BottomNav active="home" />
             </div>

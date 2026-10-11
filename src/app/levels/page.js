@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, LockKeyhole, Star } from "lucide-react";
+import { ChevronLeft, LockKeyhole, Star, Map } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
@@ -109,6 +109,7 @@ export default function LevelsPage() {
               </div>
             </header>
 
+            <Link href="/journey" className="relative z-10 mx-4 mt-3 flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/40 bg-cyan-500/10 text-xs font-black text-cyan-100"><Map size={17}/> Journey Map · 3 Worlds</Link>
             <section className="relative z-10 shrink-0 px-4 pt-3">
               <div className="grid grid-cols-3 overflow-hidden rounded-full border border-cyan-400/20 sv-theme-panel bg-[#041a2b] p-1">
                 {DIFFICULTIES.map((key) => {

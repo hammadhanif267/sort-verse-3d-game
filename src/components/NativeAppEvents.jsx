@@ -8,6 +8,20 @@ import { setAppActive } from "@/lib/sound";
 export default function NativeAppEvents() {
   const router = useRouter();
   useEffect(() => {
+    const syncComfort = () => {
+      for (const key of ["large", "contrast", "reduced", "low"]) {
+        document.documentElement.classList.toggle(`sv-${key}`, window.localStorage.getItem(`sortverse-setting-${key}`) === "1");
+      }
+    };
+    syncComfort();
+    window.addEventListener("storage", syncComfort);
+    window.addEventListener("sortverse-progress", syncComfort);
+    return () => {
+      window.removeEventListener("storage", syncComfort);
+      window.removeEventListener("sortverse-progress", syncComfort);
+    };
+  }, []);
+  useEffect(() => {
     if (!isNative()) return;
     document.documentElement.classList.add("native-device");
     let active = true;
@@ -24,6 +38,12 @@ export default function NativeAppEvents() {
             window.dispatchEvent(new Event("sortverse-native-back"));
           } else if (path === "/") {
             if (window.confirm("Exit SortVerse 3D?")) App.exitApp();
+          } else if (["/skins", "/trophies"].includes(path)) {
+            router.push("/profile");
+          } else if (path === "/special") {
+            router.push("/journey");
+          } else if (path === "/journey") {
+            router.push("/levels");
           } else if (path === "/settings") {
             router.push("/profile");
           } else if (window.history.length > 1) {

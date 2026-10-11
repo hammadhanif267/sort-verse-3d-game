@@ -1,13 +1,22 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GameplayScene, { difficultyParams } from "../../components/game/GameplayScene";
 import { TimerIcon } from "@/components/icons";
 import { Pause, Play } from "lucide-react";
 import { playIntroChime } from "@/lib/sound";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
-import { getMission } from "@/lib/levelMissions";
+import { canEnterDifficulty, getMission } from "@/lib/levelMissions";
+import { SPECIAL_MISSIONS } from "@/lib/playerExperience";
+
+function subscribeComfort(notify) {
+  window.addEventListener("storage", notify);
+  window.addEventListener("sortverse-progress", notify);
+  return () => { window.removeEventListener("storage", notify); window.removeEventListener("sortverse-progress", notify); };
+}
+function readCasual() { return typeof window !== "undefined" && window.localStorage.getItem("sortverse-setting-casual") === "1"; }
 
 // How long the intro chime is given before the gameplay loop fades in.
 const GAMEPLAY_MUSIC_DELAY_MS = 1400;
@@ -20,38 +29,54 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
+function canOpenLevel(level, difficulty) {
+  if (typeof window === "undefined") return true;
+  try {
+    const progress = JSON.parse(window.localStorage.getItem("sortverse-difficulty-progress") || "{}");
+    return canEnterDifficulty(difficulty, progress) && level <= (Number(progress[difficulty]) || 0) + 1;
+  } catch { return difficulty === "normal" && level === 1; }
+}
+
 function GameplayContent() {
   const searchParams = useSearchParams();
   const levelParam = Number(searchParams.get("level"));
   const level = Number.isFinite(levelParam) && levelParam > 0 ? Math.min(12, Math.floor(levelParam)) : 1;
-  const dailyDate = searchParams.get("daily");
+  // Resolve route parameters before any hook reads them. Keeping both the
+  // special-mission check and the unlock snapshot below these declarations
+  // prevents temporal-dead-zone crashes when navigating into gameplay.
   const difficultyParam = searchParams.get("difficulty");
   const difficulty = ["normal", "hard", "expert"].includes(difficultyParam) ? difficultyParam : "normal";
+  const dailyDate = searchParams.get("daily");
+  const specialParam = searchParams.get("special");
+  const specialId = SPECIAL_MISSIONS.some((m) => m.id === specialParam && m.difficulty === difficulty && m.level === level) ? specialParam : null;
+  const readUnlocked = useCallback(() => canOpenLevel(level, difficulty), [level, difficulty]);
+  const casual = useSyncExternalStore(subscribeComfort, readCasual, () => false);
+  const unlocked = useSyncExternalStore(subscribeComfort, readUnlocked, () => true);
 
+  if (!unlocked) return <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#020b15] px-6 text-center text-white"><h1 className="text-2xl font-black">Level locked</h1><p className="text-sm text-white/70">Clear earlier levels to unlock this challenge.</p><Link href="/levels" className="rounded-xl bg-cyan-500 px-6 py-3 font-bold text-[#031320]">Level Selection</Link></main>;
   // Keyed sessions reset the HUD, puzzle, and pause state together whenever
   // the level, difficulty, or daily challenge changes.
-  return <GameplaySession key={`${difficulty}-${level}-${dailyDate || "regular"}`} level={level} difficulty={difficulty} dailyDate={dailyDate} />;
+  return <GameplaySession key={`${difficulty}-${level}-${dailyDate || "regular"}-${specialId || "campaign"}-${casual}`} level={level} difficulty={difficulty} dailyDate={dailyDate} specialId={specialId} casual={casual} />;
 }
 
-function GameplaySession({ level, difficulty, dailyDate }) {
+function GameplaySession({ level, difficulty, dailyDate, specialId, casual }) {
   const router = useRouter();
   const mission = getMission(difficulty, level);
-  const [timeLeft, setTimeLeft] = useState(() => difficultyParams(level, difficulty).timeSeconds);
+  const [timeLeft, setTimeLeft] = useState(() => casual ? null : difficultyParams(level, difficulty).timeSeconds);
   const [paused, setPaused] = useState(false);
   const [levelCompleted, setLevelCompleted] = useState(false);
 
   const togglePause = () => {
-    setPaused((value) => {
-      const next = !value;
-      if (value && !next) playIntroChime();
-      return next;
-    });
+    // State updaters must be pure: playing the chime inside an updater can
+    // double-trigger in React Strict Mode (and with React Compiler).
+    if (paused) playIntroChime();
+    setPaused((value) => !value);
   };
 
   useEffect(() => {
     const onBack = () => {
       if (!paused) setPaused(true);
-      else if (window.confirm("Leave this level? Unsaved moves will be lost.")) router.push("/");
+      else if (window.confirm("Exit to Home? Your unfinished puzzle is saved automatically.")) router.push("/");
     };
     window.addEventListener("sortverse-native-back", onBack);
     return () => window.removeEventListener("sortverse-native-back", onBack);
@@ -143,6 +168,8 @@ function GameplaySession({ level, difficulty, dailyDate }) {
                 level={level}
                 difficulty={difficulty}
                 dailyDate={dailyDate}
+                specialId={specialId}
+                casual={casual}
                 onTimeChange={setTimeLeft}
                 onCompletionChange={setLevelCompleted}
                 paused={paused}

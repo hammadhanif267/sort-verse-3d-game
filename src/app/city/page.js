@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { ChevronLeft, Sparkles, Palette } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
@@ -244,6 +244,7 @@ export default function CityPage() {
                 clears in Levels to build it up fastest — {totalStars} of {maxStars} stars collected so far.
               </p>
 
+              <Link href="/skins" className="mt-4 flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-cyan-300/40 bg-cyan-400/10 text-sm font-black text-cyan-100"><Palette size={17}/> Decorate Your Tubes</Link>
               <Link
                 href="/levels"
                 prefetch

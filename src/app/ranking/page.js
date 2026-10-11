@@ -524,6 +524,7 @@ export default function RankingPage() {
               </div>
             )}
 
+            <Link href="/trophies" className="relative z-10 mx-4 mb-2 flex min-h-11 items-center justify-center rounded-xl border border-yellow-300/30 bg-yellow-500/10 text-xs font-black text-yellow-100">View Trophy Book →</Link>
             <BottomNav active="ranking" />
           </div>
         </div>

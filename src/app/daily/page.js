@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Flame } from "lucide-react";
+import { ChevronLeft, Flame, Gift } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
+import { claimMonthlyAurora, monthLocalKey, readRecord } from "@/lib/playerExperience";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { playCoinCollectSound } from "@/lib/sound";
 import {
@@ -112,6 +113,7 @@ export default function DailyChallengePage() {
   const [dailyLog, setDailyLog] = useState({});
   const [normalProgress, setNormalProgress] = useState(0);
   const [freeClaimLog, setFreeClaimLog] = useState({});
+  const [monthlyClaims, setMonthlyClaims] = useState({});
 
   // Keep the countdown ticking and pick up progress made in gameplay.
   useEffect(() => {
@@ -133,6 +135,7 @@ export default function DailyChallengePage() {
       setNormalProgress(progress);
       setDailyLog(log);
       setFreeClaimLog(getFreeClaimLog());
+      setMonthlyClaims(readRecord("monthly-aurora-v1"));
     };
 
     const onVisibility = () => {
@@ -249,6 +252,14 @@ export default function DailyChallengePage() {
   const [claimCelebrate, setClaimCelebrate] = useState(false);
   const [claimCoinFly, setClaimCoinFly] = useState(false);
   const [claimGemFly, setClaimGemFly] = useState(false);
+  const [monthlyStatus, setMonthlyStatus] = useState("");
+  const monthlyCount = Object.keys(dailyLog).filter((key) => key.startsWith(`${monthLocalKey(now)}-`)).length;
+  const monthlyClaimed = Boolean(monthlyClaims[monthLocalKey(now)]);
+  function collectMonthly() {
+    if (!claimMonthlyAurora(monthLocalKey(now))) { setMonthlyStatus("Complete seven Daily Puzzles this month first."); return; }
+    setMonthlyStatus("Aurora tube skin unlocked! Equip it in Tube Skins.");
+    setMonthlyClaims(readRecord("monthly-aurora-v1"));
+  }
 
   function handleClaimFree() {
     if (isFreeClaimed) return;
@@ -360,6 +371,13 @@ export default function DailyChallengePage() {
                 </div>
               </div>
 
+              <section className="mt-3 rounded-2xl border border-violet-300/30 bg-[#211436]/85 p-3" aria-label="Monthly daily puzzle collection">
+                <div className="flex items-center gap-2 text-sm font-black text-violet-100"><Gift size={18}/> Monthly Puzzle Collection</div>
+                <p className="mt-1 text-[11px] leading-4 text-white/70">Complete seven different Daily Puzzles this calendar month to unlock the Aurora tube skin. Free gifts do not count.</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-fuchsia-400" style={{width:`${Math.min(100,monthlyCount / 7 * 100)}%`}}/></div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold"><span>{Math.min(monthlyCount,7)} / 7 puzzles</span>{monthlyClaimed ? <span className="text-emerald-300">Unlocked ✓</span> : <button onClick={collectMonthly} disabled={monthlyCount < 7} type="button" className="min-h-10 rounded-lg bg-violet-500 px-3 text-white disabled:bg-slate-700 disabled:text-white/40">Claim Aurora</button>}</div>
+                {monthlyStatus && <p role="status" className="mt-2 text-xs text-cyan-200">{monthlyStatus}</p>}
+              </section>
               {/* 7-day streak row */}
               <div className="mt-3 grid grid-cols-7 gap-1.5">
                 {weekDays.map((d, i) => {

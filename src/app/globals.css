@@ -384,3 +384,23 @@ button, a { touch-action: manipulation; }
 .sv-phone { --sv-tube-width: 6.8dvh; }
 @media (max-height: 680px) { .sv-phone { --sv-tube-width: 6.1dvh; } }
 @media (max-height: 560px) { .sv-phone { --sv-tube-width: 5.4dvh; } }
+
+/* Optional comfort modes affect UI, never the underlying puzzle colors or shapes. */
+:root.sv-large .sv-phone :is(button, a, p, label, span) { letter-spacing: .01em; }
+:root.sv-large .sv-phone :is(p, button, a) { font-size: max(12px, 1em); }
+:root.sv-contrast .sv-phone { filter: contrast(1.2); }
+:root.sv-reduced *, :root.sv-reduced *::before, :root.sv-reduced *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-phone *, .sv-phone *::before, .sv-phone *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@keyframes sv-star-reveal { from { opacity: 0; transform: scale(.2) rotate(-30deg); } 70% { transform: scale(1.3) rotate(8deg); } to { opacity:1; transform: scale(1); } }
+.sv-win-star { animation: sv-star-reveal 550ms cubic-bezier(.2,.7,.2,1) both; }
+
+:root.sv-low .sv-phone :is(.sv-theme-art, .city-sparkle) { filter: none !important; animation: none !important; }
+:root.sv-low .sv-phone :is(.sv-theme-panel, .sv-theme-chip, .sv-game-toolbar) { backdrop-filter: none !important; box-shadow: none !important; }
+@media (max-height: 620px) { .sv-home-extras { display: none; } }
