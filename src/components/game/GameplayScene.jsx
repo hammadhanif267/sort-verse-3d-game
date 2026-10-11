@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { AlarmClock, Bomb, Home, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";

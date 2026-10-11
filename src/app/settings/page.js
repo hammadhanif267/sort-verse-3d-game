@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { ChevronLeft, Copy, ShieldCheck } from "lucide-react";
 import { exportCode, parseCode, overwriteProgress, queueMirror } from "@/lib/backup";
 import { isMuted, setMuted, setMusicEnabled, setSoundEffectsEnabled } from "@/lib/sound";
@@ -58,7 +58,7 @@ export default function SettingsPage() {
   return (
     <main className="sv-screen h-dvh overflow-y-auto bg-[#020b15] text-white">
       <div className="mx-auto min-h-dvh max-w-[430px] px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))]">
-        <Link href="/profile" className="mb-6 inline-flex items-center gap-2 text-cyan-200"><ChevronLeft size={18} /> Profile</Link>
+        <Link href="/profile" className="mb-6 inline-flex min-h-11 items-center gap-2 text-cyan-200"><ChevronLeft size={18} /> Profile</Link>
         <h1 className="text-2xl font-black">Settings</h1>
         <p className="mt-1 text-sm text-white/55">All settings and progress are stored on this device.</p>
         <section aria-labelledby="theme-heading" className="sv-theme-panel mt-6 rounded-2xl border border-white/10 bg-[#082238] p-4">

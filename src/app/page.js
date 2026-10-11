@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { usePlayerStats } from "@/lib/playerStats";
 import { usePlayerProfile } from "@/lib/ranking";
 import { PreviewableAvatar } from "@/components/AvatarPreview";
@@ -161,7 +161,7 @@ export default function HomePage() {
                 <Link
                   href={normalCampaignFinished ? "/levels" : `/gameplay?level=${nextLevel}`}
                   prefetch
-                  className="group mx-auto flex h-[44px] w-[94%] items-center justify-center rounded-full border border-yellow-300/70 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_4px_14px_rgba(255,160,0,0.18)] transition duration-200 hover:border-yellow-200 hover:bg-gradient-to-b hover:from-[#ffe45a] hover:to-[#ffb300] hover:shadow-[0_0_18px_rgba(255,195,0,0.35)] hover:brightness-110 active:scale-[0.99]"
+                  className="group mx-auto flex h-[48px] w-[94%] items-center justify-center rounded-full border border-yellow-300/70 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_4px_14px_rgba(255,160,0,0.18)] transition duration-200 hover:border-yellow-200 hover:bg-gradient-to-b hover:from-[#ffe45a] hover:to-[#ffb300] hover:shadow-[0_0_18px_rgba(255,195,0,0.35)] hover:brightness-110 active:scale-[0.99]"
                 >
                   <span className="text-base font-black tracking-wide text-[#181000] transition-colors duration-200 group-hover:text-[#5c3900]">
                     {playLabel}
@@ -217,7 +217,7 @@ function MenuButton({
   href,
   disabled = false,
 }) {
-  const className = `group relative mx-auto flex h-[42px] w-[94%] items-center rounded-full border px-3 text-left transition duration-200 active:scale-[0.99] ${
+  const className = `group relative mx-auto flex h-[46px] w-[94%] items-center rounded-full border px-3 text-left transition duration-200 active:scale-[0.99] ${
     disabled ? "cursor-not-allowed opacity-65" : ""
   } ${
     purple

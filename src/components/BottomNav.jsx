@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { GridIcon, HomeIcon, TrophyIcon, UserIcon } from "@/components/icons";
 
 const TABS = [
@@ -17,12 +17,12 @@ const TABS = [
  */
 export default function BottomNav({ active }) {
   return (
-    <nav className="sv-theme-nav shrink-0 border-t border-cyan-300/10 bg-[#031421]/95 px-4 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+    <nav className="sv-theme-nav relative z-40 shrink-0 border-t border-cyan-300/10 bg-[#031421]/95 px-4 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
       <div className="grid grid-cols-4">
         {TABS.map((tab) => {
           const isActive = tab.key === active;
           const Icon = tab.icon;
-          const className = `flex flex-col items-center justify-center gap-1 rounded-xl py-1 text-[9px] font-semibold transition ${
+          const className = `flex flex-col items-center justify-center gap-1 rounded-xl min-h-12 py-2 text-[9px] font-semibold transition ${
             isActive
               ? "text-[#ffb020]"
               : tab.href
@@ -38,7 +38,7 @@ export default function BottomNav({ active }) {
 
           if (tab.href) {
             return (
-              <Link key={tab.key} href={tab.href} prefetch className={className}>
+              <Link key={tab.key} href={tab.href} className={className} aria-current={isActive ? "page" : undefined}>
                 {content}
               </Link>
             );
