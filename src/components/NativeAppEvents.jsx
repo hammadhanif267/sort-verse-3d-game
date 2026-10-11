@@ -26,9 +26,9 @@ export default function NativeAppEvents() {
             if (window.confirm("Exit SortVerse 3D?")) App.exitApp();
           } else if (path === "/settings") {
             router.push("/profile");
+          } else if (window.history.length > 1) {
+            window.history.back();
           } else {
-            // WebView history can contain startup or external entries.
-            // A predictable Home destination never exits to a blank screen.
             router.push("/");
           }
         });

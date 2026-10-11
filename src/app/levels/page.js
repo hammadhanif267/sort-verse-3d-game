@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "@/components/ReliableLink";
+import Link from "next/link";
 import { ChevronLeft, LockKeyhole, Star } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
@@ -92,7 +92,7 @@ export default function LevelsPage() {
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.48),rgba(2,13,24,.88))]" />
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link href="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
+              <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Level Selection</span>
               </Link>
@@ -120,7 +120,7 @@ export default function LevelsPage() {
                       type="button"
                       disabled={!unlocked}
                       onClick={() => unlocked && setDifficulty(key)}
-                      className={active ? "rounded-full bg-gradient-to-b from-[#38cfff] to-[#0879cf] py-2 text-[10px] font-black shadow-[0_0_15px_rgba(0,180,255,0.25)]" : "flex items-center justify-center gap-1 rounded-full py-2 text-[10px] font-medium text-white/55 disabled:cursor-not-allowed disabled:opacity-45"}
+                      className={active ? "rounded-full bg-gradient-to-b from-[#38cfff] to-[#0879cf] min-h-11 text-xs font-black shadow-[0_0_15px_rgba(0,180,255,0.25)]" : "flex items-center justify-center gap-1 rounded-full min-h-11 text-xs font-medium text-white/55 disabled:cursor-not-allowed disabled:opacity-45"}
                     >
                       {!unlocked && <LockKeyhole className="h-3 w-3" strokeWidth={2.4} />}
                       {key[0].toUpperCase() + key.slice(1)}
@@ -130,13 +130,13 @@ export default function LevelsPage() {
               </div>
             </section>
 
-            <div className="relative z-10 shrink-0 px-4 pt-2 text-center text-[10px] text-cyan-100/70">
+            <div className="relative z-10 shrink-0 px-4 pt-2 text-center text-[11px] leading-5 text-cyan-100/70">
               {difficulty === "normal" ? "Learn • Explore • Celebrate" : difficulty === "hard" ? "Unlocked after Normal 4 • Master new tricks" : "Unlocked after Hard 6 • Grand challenges"}
               {!difficultyUnlocked("hard") && <span className="block text-yellow-200/75">Clear Normal 4 to unlock Hard</span>}
               {difficultyUnlocked("hard") && !difficultyUnlocked("expert") && <span className="block text-yellow-200/75">Clear Hard 6 to unlock Expert</span>}
             </div>
-            <section className="relative z-10 min-h-0 flex-1 overflow-hidden px-4 py-3">
-              <div className="grid h-full min-h-0 grid-cols-3 grid-rows-4 gap-x-3 gap-y-1.5">
+            <section aria-label="Choose a level" className="game-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4 pb-4">
                 {Array.from({ length: LEVEL_COUNT }, (_, index) => {
                   const id = index + 1;
                   const isCompleted = id <= completed;
@@ -176,10 +176,10 @@ const numberOutline = {
 function LevelCard({ id, stars, reward, completed, open, difficulty, mission }) {
   if (!open) {
     return (
-      <div className="flex min-h-0 flex-col items-center gap-1">
+      <div className="flex min-h-[146px] flex-col items-center gap-1.5">
         <div
           aria-label={`${mission.title} locked`}
-          className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[11px] border border-cyan-300/15 bg-[#04101c] shadow-[inset_0_0_16px_rgba(0,0,0,.5)]"
+          className="relative min-h-[116px] w-full flex-1 overflow-hidden rounded-[11px] border border-cyan-300/15 bg-[#04101c] shadow-[inset_0_0_16px_rgba(0,0,0,.5)]"
         >
           <LevelArt id={id} className="absolute inset-0 h-full w-full brightness-[0.55] saturate-[0.7]" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,10,20,.15)_0%,rgba(2,10,20,.45)_100%)]" />
@@ -187,18 +187,18 @@ function LevelCard({ id, stars, reward, completed, open, difficulty, mission }) 
             <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#04101c]/80 shadow-[0_4px_14px_rgba(0,0,0,0.55)]"><LockKeyhole className="h-4 w-4 text-cyan-100/70" strokeWidth={2.3} /></span>
           </div>
         </div>
-        <span className="max-w-full truncate text-[9px] font-bold text-white/50" title={mission.title}>{mission.title}</span>
+        <span className="max-w-full text-center text-[11px] font-semibold leading-4 text-white/60" title={mission.title}>{mission.title}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-col items-center gap-1">
+    <div className="flex min-h-[146px] flex-col items-center gap-1.5">
       <Link
         href={`/gameplay?level=${id}&difficulty=${difficulty}`}
         prefetch
         aria-label={`Play ${difficulty} level ${id}: ${mission.title}`}
-        className={`group relative min-h-0 w-full flex-1 overflow-hidden rounded-[11px] border bg-[#04101c] transition active:scale-[0.97] ${
+        className={`group relative min-h-[116px] w-full flex-1 overflow-hidden rounded-[11px] border bg-[#04101c] transition active:scale-[0.97] ${
           completed
             ? "border-cyan-300/25 shadow-[inset_0_0_16px_rgba(0,160,230,0.05)]"
             : "border-cyan-300 shadow-[0_0_22px_rgba(0,190,255,0.42),inset_0_0_18px_rgba(0,180,255,0.14)]"
@@ -216,20 +216,20 @@ function LevelCard({ id, stars, reward, completed, open, difficulty, mission }) 
             </div>
           )}
           {completed && reward && (
-            <div className="flex items-center gap-1 text-[7px] font-black leading-none">
+            <div className="flex items-center gap-1.5 text-[10px] font-black leading-none">
               <span className="inline-flex items-center gap-[1px] text-yellow-200">
-                <HomeCoinIcon className="h-2 w-2" />
+                <HomeCoinIcon className="h-3 w-3" />
                 {reward.coins}
               </span>
               <span className="inline-flex items-center gap-[1px] text-violet-200">
-                <HomeGemIcon className="h-2 w-2" />
+                <HomeGemIcon className="h-3 w-3" />
                 {reward.diamonds}
               </span>
             </div>
           )}
         </div>
       </Link>
-      <span className="max-w-full truncate text-[9px] font-bold text-cyan-100/75" title={mission.title}>{mission.title}</span>
+      <span className="max-w-full text-center text-[11px] font-bold leading-4 text-cyan-100/85" title={mission.title}>{mission.title}</span>
     </div>
   );
 }

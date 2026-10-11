@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "@/components/ReliableLink";
+import Link from "next/link";
 import { BarChart3, CalendarDays, ChevronLeft, Download, Flame, Gamepad2, Pencil, Share2, UserRound, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
@@ -290,7 +290,7 @@ export default function RankingPage() {
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link href="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
+              <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Ranking</span>
               </Link>
@@ -385,14 +385,14 @@ export default function RankingPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate rounded-md bg-cyan-300/10 px-1.5 py-0.5 text-[10px] font-black text-cyan-100 ring-1 ring-cyan-300/20">{data?.name || "Player"}</span>
-                        <span className="text-[9px] font-black" style={{ color: league.color }}>{league.name} League</span>
+                        <span className="text-[10px] font-black" style={{ color: league.color }}>{league.name} League</span>
                       </div>
-                      <div className="mt-1 text-[9px] font-bold text-white/55">{data?.name || "Player"} is at Stage {data?.city?.cityStage || 1} · City Level {data?.city?.cityLevel || 1} · Overall Performance</div>
+                      <div className="mt-1 text-[10px] font-bold text-white/55">{data?.name || "Player"} is at Stage {data?.city?.cityStage || 1} · City Level {data?.city?.cityLevel || 1} · Overall Performance</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => openPerformance({ id: "overall-performance", isOverall: true })}
-                      className="shrink-0 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-black text-cyan-100 transition hover:bg-cyan-400/20"
+                      className="shrink-0 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black text-cyan-100 transition hover:bg-cyan-400/20"
                     >View</button>
                   </div>
                 </div>
@@ -419,20 +419,20 @@ export default function RankingPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate rounded-md bg-cyan-300/10 px-1.5 py-0.5 text-[11px] font-black text-cyan-100 ring-1 ring-cyan-300/20">{data?.name || "Player"}</span>
-                              <span className="text-[9px] font-black text-white/45">Level {r.level}</span>
+                              <span className="text-[10px] font-black text-white/45">Level {r.level}</span>
                             </div>
-                            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[9px] font-bold text-white/55">
+                            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] font-bold text-white/55">
                               <span>{String(r.difficulty || "normal").toUpperCase()}</span>
                               <span>Stage {r.stage || (Number(r.level || 1) <= 2 ? 1 : Number(r.level || 1) <= 4 ? 2 : Number(r.level || 1) <= 6 ? 3 : Number(r.level || 1) <= 8 ? 4 : Number(r.level || 1) <= 10 ? 5 : 6)} · City Lv {r.cityLevel || r.level}</span>
                               <span>{r.league || league.name} League</span>
                               <span>{r.stars} / 3 stars</span>
                               <span>{r.moves != null ? `${r.moves} moves` : "moves not recorded"}</span>
                             </div>
-                            <div className="mt-0.5 text-[8px] font-semibold text-white/30">Completed {r.completedAt ? new Date(r.completedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Recorded"}</div>
+                            <div className="mt-0.5 text-[10px] font-semibold text-white/30">Completed {r.completedAt ? new Date(r.completedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Recorded"}</div>
                           </div>
                           <div className="shrink-0 text-right">
-                            <div className="text-[12px] font-black text-yellow-200">{Number(r.score).toLocaleString()}<div className="text-[8px] uppercase text-white/30">points</div></div>
-                            <button type="button" onClick={() => openPerformance(r)} className="mt-1 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-black text-cyan-100 transition hover:bg-cyan-400/20">View</button>
+                            <div className="text-[12px] font-black text-yellow-200">{Number(r.score).toLocaleString()}<div className="text-[10px] uppercase text-white/30">points</div></div>
+                            <button type="button" onClick={() => openPerformance(r)} className="mt-1 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black text-cyan-100 transition hover:bg-cyan-400/20">View</button>
                           </div>
                         </div>
                       </div>
@@ -444,8 +444,8 @@ export default function RankingPage() {
 
                 {performanceTab === "streak" && (
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-orange-300/15 bg-orange-400/5 p-3"><Flame className="h-5 w-5 text-orange-300" /><div className="mt-1 text-2xl font-black">{data?.performance?.currentStreak ?? 0}</div><div className="text-[9px] font-bold uppercase text-white/35">Current streak</div></div>
-                    <div className="rounded-xl border border-yellow-300/15 bg-yellow-400/5 p-3"><TrophyGoldIcon className="h-5 w-5" /><div className="mt-1 text-2xl font-black">{data?.performance?.bestStreak ?? 0}</div><div className="text-[9px] font-bold uppercase text-white/35">Best streak</div></div>
+                    <div className="rounded-xl border border-orange-300/15 bg-orange-400/5 p-3"><Flame className="h-5 w-5 text-orange-300" /><div className="mt-1 text-2xl font-black">{data?.performance?.currentStreak ?? 0}</div><div className="text-[10px] font-bold uppercase text-white/35">Current streak</div></div>
+                    <div className="rounded-xl border border-yellow-300/15 bg-yellow-400/5 p-3"><TrophyGoldIcon className="h-5 w-5" /><div className="mt-1 text-2xl font-black">{data?.performance?.bestStreak ?? 0}</div><div className="text-[10px] font-bold uppercase text-white/35">Best streak</div></div>
                   </div>
                 )}
 
@@ -457,7 +457,7 @@ export default function RankingPage() {
                       [BarChart3, "Average score", data?.performance?.averageScore ?? 0],
                       [Flame, "Best streak", data?.performance?.bestStreak ?? 0],
                     ].map(([Icon, label, value]) => (
-                      <div key={label} className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 p-2.5"><Icon className="h-4 w-4 text-cyan-300" /><div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div><div className="text-[9px] font-bold uppercase text-white/35">{label}</div></div>
+                      <div key={label} className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/80 p-2.5"><Icon className="h-4 w-4 text-cyan-300" /><div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div><div className="text-[10px] font-bold uppercase text-white/35">{label}</div></div>
                     ))}
                   </div>
                 )}
@@ -478,39 +478,39 @@ export default function RankingPage() {
                   <div className="p-4">
                     <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#08263b] p-4">
                       <div className="text-center text-lg font-black tracking-wide">SORTVERSE 3D</div>
-                      <div className="mt-0.5 text-center text-[9px] font-bold uppercase tracking-[0.16em] text-white/35">{selectedPerformance.isOverall ? "Overall Performance Receipt" : "Performance Receipt"}</div>
+                      <div className="mt-0.5 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">{selectedPerformance.isOverall ? "Overall Performance Receipt" : "Performance Receipt"}</div>
                       <div className="my-4 h-px bg-white/10" />
 
                       <div className="flex items-center gap-2">
                         <div ref={avatarReceiptRef}><Avatar name={data?.name || "Player"} you size={40} avatar={data?.avatar || null} /></div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 text-[12px] font-black"><UserRound className="h-3.5 w-3.5 text-cyan-300" /> {data?.name || "Player"}</div>
-                          <div className="mt-0.5 text-[9px] text-white/40">{selectedPerformance.isOverall ? `Stage ${receiptDetails(selectedPerformance).stage} · City Level ${receiptDetails(selectedPerformance).cityLevel}` : `Level ${selectedPerformance.level} · ${String(selectedPerformance.difficulty || "normal").toUpperCase()}`}</div>
+                          <div className="mt-0.5 text-[10px] text-white/40">{selectedPerformance.isOverall ? `Stage ${receiptDetails(selectedPerformance).stage} · City Level ${receiptDetails(selectedPerformance).cityLevel}` : `Level ${selectedPerformance.level} · ${String(selectedPerformance.difficulty || "normal").toUpperCase()}`}</div>
                         </div>
                       </div>
 
                       <div className="my-4 text-center">
                         <div className="text-3xl font-black text-yellow-300">{Number(receiptDetails(selectedPerformance).score || 0).toLocaleString()}</div>
-                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/35">Points</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Points</div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">League</div><div className="mt-1 text-sm font-black" style={{ color: receiptDetails(selectedPerformance).league === league.name ? league.color : undefined }}>{receiptDetails(selectedPerformance).league} League</div></div>
-                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">{selectedPerformance.isOverall ? "Current Status" : "Difficulty"}</div><div className="mt-1 text-sm font-black">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage}` : String(selectedPerformance.difficulty || "normal").toUpperCase()}</div></div>
-                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">City Progress</div><div className="mt-1 text-sm font-black text-cyan-200">Stage {receiptDetails(selectedPerformance).stage} · City Level {receiptDetails(selectedPerformance).cityLevel}</div></div>
-                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Stars</div><div className="mt-1 text-sm font-black">⭐ {receiptDetails(selectedPerformance).stars}{selectedPerformance.isOverall ? " total" : " / 3"}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">League</div><div className="mt-1 text-sm font-black" style={{ color: receiptDetails(selectedPerformance).league === league.name ? league.color : undefined }}>{receiptDetails(selectedPerformance).league} League</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">{selectedPerformance.isOverall ? "Current Status" : "Difficulty"}</div><div className="mt-1 text-sm font-black">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage}` : String(selectedPerformance.difficulty || "normal").toUpperCase()}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">City Progress</div><div className="mt-1 text-sm font-black text-cyan-200">Stage {receiptDetails(selectedPerformance).stage} · City Level {receiptDetails(selectedPerformance).cityLevel}</div></div>
+                        <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Stars</div><div className="mt-1 text-sm font-black">⭐ {receiptDetails(selectedPerformance).stars}{selectedPerformance.isOverall ? " total" : " / 3"}</div></div>
                         {selectedPerformance.isOverall ? (
                           <>
-                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Games Played</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).gamesPlayed}</div></div>
-                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Best Score</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).bestScore.toLocaleString()}</div></div>
-                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Average</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).averageScore.toLocaleString()}</div></div>
-                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Streak</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).currentStreak} / {receiptDetails(selectedPerformance).bestStreak}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Games Played</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).gamesPlayed}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Best Score</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).bestScore.toLocaleString()}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Average</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).averageScore.toLocaleString()}</div></div>
+                            <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Streak</div><div className="mt-1 text-sm font-black">{receiptDetails(selectedPerformance).currentStreak} / {receiptDetails(selectedPerformance).bestStreak}</div></div>
                           </>
                         ) : (
-                          <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[9px] uppercase text-white/35">Moves</div><div className="mt-1 text-sm font-black">{selectedPerformance.moves ?? "Not recorded"}</div></div>
+                          <div className="rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="text-[10px] uppercase text-white/35">Moves</div><div className="mt-1 text-sm font-black">{selectedPerformance.moves ?? "Not recorded"}</div></div>
                         )}
-                        <div className="col-span-2 rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="flex items-center gap-1.5 text-[9px] uppercase text-white/35"><CalendarDays className="h-3 w-3" /> {selectedPerformance.isOverall ? "Modes" : "Completed"}</div><div className="mt-1 text-[11px] font-bold">{selectedPerformance.isOverall ? `Normal ${receiptDetails(selectedPerformance).normal} · Hard ${receiptDetails(selectedPerformance).hard} · Expert ${receiptDetails(selectedPerformance).expert}` : formatPerformanceDate(selectedPerformance.completedAt)}</div></div>
-                        <div className="col-span-2 rounded-xl border border-cyan-300/10 bg-cyan-300/5 p-2.5"><div className="text-[9px] uppercase text-cyan-200/45">Performance summary</div><div className="mt-1 text-[10px] font-bold leading-relaxed text-white/70">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage} · City Level ${receiptDetails(selectedPerformance).cityLevel}, in the ${receiptDetails(selectedPerformance).league} League, with ${receiptDetails(selectedPerformance).gamesPlayed} gameplay performances, ${receiptDetails(selectedPerformance).stars} total stars, a best score of ${receiptDetails(selectedPerformance).bestScore.toLocaleString()} points, and a ${receiptDetails(selectedPerformance).currentStreak}-day current streak.` : `${receiptDetails(selectedPerformance).player} completed Level ${selectedPerformance.level} in Stage ${receiptDetails(selectedPerformance).stage} (${String(selectedPerformance.difficulty || "normal").toUpperCase()}) with ${selectedPerformance.stars ?? 0} stars, ${selectedPerformance.moves ?? "unrecorded"} moves, and a score of ${Number(selectedPerformance.score || 0).toLocaleString()} points.`}</div></div>
+                        <div className="col-span-2 rounded-xl border border-white/8 sv-theme-panel bg-[#031a2a]/70 p-2.5"><div className="flex items-center gap-1.5 text-[10px] uppercase text-white/35"><CalendarDays className="h-3 w-3" /> {selectedPerformance.isOverall ? "Modes" : "Completed"}</div><div className="mt-1 text-[11px] font-bold">{selectedPerformance.isOverall ? `Normal ${receiptDetails(selectedPerformance).normal} · Hard ${receiptDetails(selectedPerformance).hard} · Expert ${receiptDetails(selectedPerformance).expert}` : formatPerformanceDate(selectedPerformance.completedAt)}</div></div>
+                        <div className="col-span-2 rounded-xl border border-cyan-300/10 bg-cyan-300/5 p-2.5"><div className="text-[10px] uppercase text-cyan-200/45">Performance summary</div><div className="mt-1 text-[10px] font-bold leading-relaxed text-white/70">{selectedPerformance.isOverall ? `${receiptDetails(selectedPerformance).player} is at Stage ${receiptDetails(selectedPerformance).stage} · City Level ${receiptDetails(selectedPerformance).cityLevel}, in the ${receiptDetails(selectedPerformance).league} League, with ${receiptDetails(selectedPerformance).gamesPlayed} gameplay performances, ${receiptDetails(selectedPerformance).stars} total stars, a best score of ${receiptDetails(selectedPerformance).bestScore.toLocaleString()} points, and a ${receiptDetails(selectedPerformance).currentStreak}-day current streak.` : `${receiptDetails(selectedPerformance).player} completed Level ${selectedPerformance.level} in Stage ${receiptDetails(selectedPerformance).stage} (${String(selectedPerformance.difficulty || "normal").toUpperCase()}) with ${selectedPerformance.stars ?? 0} stars, ${selectedPerformance.moves ?? "unrecorded"} moves, and a score of ${Number(selectedPerformance.score || 0).toLocaleString()} points.`}</div></div>
                       </div>
                     </div>
 
@@ -518,7 +518,7 @@ export default function RankingPage() {
                       <button type="button" onClick={() => savePerformanceReceipt(selectedPerformance)} className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3 py-2.5 text-[10px] font-black text-cyan-100 transition hover:bg-cyan-400/15"><Download className="h-4 w-4" /> {selectedPerformance.isOverall ? "Save Overall Receipt" : "Save Image"}</button>
                       <button type="button" onClick={() => sharePerformanceReceipt(selectedPerformance)} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-300/20 bg-yellow-400/10 px-3 py-2.5 text-[10px] font-black text-yellow-100 transition hover:bg-yellow-400/15"><Share2 className="h-4 w-4" /> {selectedPerformance.isOverall ? "Share Overall Receipt" : "Share"}</button>
                     </div>
-                    {shareMessage && <div className="mt-2 text-center text-[9px] font-bold text-white/45">{shareMessage}</div>}
+                    {shareMessage && <div className="mt-2 text-center text-[10px] font-bold text-white/45">{shareMessage}</div>}
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "@/components/ReliableLink";
+import Link from "next/link";
 import { RotateCcw, X } from "lucide-react";
 import { AVATAR_PRESETS, Avatar, avatarAspect, avatarFullPhoto } from "@/components/RankBits";
 

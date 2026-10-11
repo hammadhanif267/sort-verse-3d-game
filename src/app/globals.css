@@ -379,3 +379,8 @@ button, a { touch-action: manipulation; }
   border-color: var(--sv-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sv-accent) 52%, transparent);
 }
+
+/* Mobile board sizing keeps shelves clear of the action toolbar on short phones. */
+.sv-phone { --sv-tube-width: 6.8dvh; }
+@media (max-height: 680px) { .sv-phone { --sv-tube-width: 6.1dvh; } }
+@media (max-height: 560px) { .sv-phone { --sv-tube-width: 5.4dvh; } }

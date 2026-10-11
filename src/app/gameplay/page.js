@@ -38,6 +38,7 @@ function GameplaySession({ level, difficulty, dailyDate }) {
   const mission = getMission(difficulty, level);
   const [timeLeft, setTimeLeft] = useState(() => difficultyParams(level, difficulty).timeSeconds);
   const [paused, setPaused] = useState(false);
+  const [levelCompleted, setLevelCompleted] = useState(false);
 
   const togglePause = () => {
     setPaused((value) => {
@@ -103,23 +104,25 @@ function GameplaySession({ level, difficulty, dailyDate }) {
                 type="button"
                 onClick={togglePause}
                 aria-label={paused ? "Resume" : "Pause"}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/30 sv-theme-chip bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-300/30 sv-theme-chip bg-[#06243a]/90 text-lg font-black text-white shadow-[0_0_18px_rgba(0,190,255,0.15)] backdrop-blur-md"
               >
                 {paused ? <Play className="h-5 w-5 fill-current" strokeWidth={2.4} /> : <Pause className="h-5 w-5 fill-current" strokeWidth={2.4} />}
               </button>
 
               {/* Level */}
-              <div className="text-center drop-shadow-lg">
-                <div className="text-xl font-black tracking-tight">Level {level}</div>
-
-                <div className="mt-0.5 text-[10px] font-medium text-cyan-100/75">
-                  {mission.title}
-                </div>
+              <div className="mx-2 flex min-w-0 max-w-[220px] flex-1 flex-col items-center gap-1 text-center drop-shadow-lg">
+                <h1 className="text-xl font-black leading-7 tracking-tight">Level {level}</h1>
+                <h2 className="mt-0.5 text-[14px] font-extrabold leading-5 text-cyan-100">{mission.title}</h2>
+                {!levelCompleted && (
+                  <p className="mt-1.5 max-w-[210px] text-[12px] font-medium leading-[1.45] text-white/80">
+                    {mission.objective}
+                  </p>
+                )}
               </div>
 
               {/* Timer */}
               <div
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold shadow-[0_0_18px_rgba(0,190,255,0.14)] backdrop-blur-md ${
+                className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-2 text-xs font-bold shadow-[0_0_18px_rgba(0,190,255,0.14)] backdrop-blur-md ${
                   timeLeft != null && timeLeft <= 15
                     ? "border-red-400/40 bg-[#3a0808]/90 text-red-200"
                     : "border-cyan-300/30 sv-theme-chip bg-[#06243a]/90"
@@ -141,6 +144,7 @@ function GameplaySession({ level, difficulty, dailyDate }) {
                 difficulty={difficulty}
                 dailyDate={dailyDate}
                 onTimeChange={setTimeLeft}
+                onCompletionChange={setLevelCompleted}
                 paused={paused}
                 onTogglePause={togglePause}
               />

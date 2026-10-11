@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "@/components/ReliableLink";
+import Link from "next/link";
 import { ChevronLeft, Flame } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
@@ -307,18 +307,18 @@ export default function DailyChallengePage() {
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
               <Link
                 href="/"
-                className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white"
+                className="flex items-center gap-2 text-white/80 transition hover:text-white"
               >
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Daily Challenge</span>
               </Link>
 
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeCoinIcon className="h-4 w-4" />
                   <span>{coins}</span>
                 </div>
-                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">
+                <div className="flex items-center gap-1 rounded-full border border-purple-400/25 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
                   <HomeGemIcon className="h-4 w-4" />
                   <span>{diamonds}</span>
                 </div>
@@ -333,14 +333,14 @@ export default function DailyChallengePage() {
                     <CalendarIcon className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-cyan-200/60">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-200/60">
                       Streak
                     </div>
                     <div className="text-sm font-black leading-tight">
                       Day {cycleDay} <span className="text-white/40">of 7</span>
                     </div>
                     {streak > 0 && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[8px] font-bold text-orange-300">
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-orange-300">
                         <>
                           <Flame className="h-3.5 w-3.5 fill-orange-400 text-orange-300" />{" "}
                           {streak}-day streak
@@ -352,7 +352,7 @@ export default function DailyChallengePage() {
 
                 <div className="flex items-center gap-1.5 rounded-full border border-pink-300/25 bg-[#2a1024]/70 px-2.5 py-1.5">
                   <GiftIcon className="h-4 w-4" />
-                  <span className="text-[9px] font-bold text-pink-100">
+                  <span className="text-[10px] font-bold text-pink-100">
                     Next reward in {hoursLeft}h{" "}
                     {String(minutesLeft).padStart(2, "0")}m{" "}
                     {String(secondsLeft).padStart(2, "0")}s
@@ -430,11 +430,11 @@ export default function DailyChallengePage() {
               {/* Today's puzzle */}
               <div className="mt-4 rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200/70">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200/70">
                     Today&apos;s Puzzle
                   </span>
                   {isTodayDone && (
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300">
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-300">
                       <CheckCircleIcon className="h-3.5 w-3.5" /> Claimed
                     </span>
                   )}
@@ -490,7 +490,7 @@ export default function DailyChallengePage() {
                     <GiftIcon className="h-9 w-9" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-200/80">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-200/80">
                       Free Daily Gift
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-[10px] font-bold text-white/70">
@@ -527,7 +527,7 @@ export default function DailyChallengePage() {
               </div>
 
               {/* Streak explainer */}
-              <p className="mt-3 px-1 text-center text-[9px] leading-relaxed text-white/35">
+              <p className="mt-3 px-1 text-center text-[10px] leading-relaxed text-white/35">
                 Claim your daily gift or complete the daily puzzle to mark that
                 day complete. Keep the streak alive for 7 days to earn the bonus
                 gift.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
-import Link from "@/components/ReliableLink";
+import Link from "next/link";
 import { AlarmClock, Bomb, Home, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
 import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";
@@ -522,6 +522,7 @@ export default function GameplayScene({
   difficulty = "normal",
   dailyDate = null,
   onTimeChange,
+  onCompletionChange,
   paused = false,
   onTogglePause,
 }) {
@@ -536,7 +537,7 @@ export default function GameplayScene({
   const [dragPoint, setDragPoint] = useState(null);
   const [shakingTubeId, setShakingTubeId] = useState(null);
   const [moves, setMoves] = useState(0);
-  const [message, setMessage] = useState(mission.tutorial ? "Drag a top piece to a matching tube" : mission.objective);
+  const [message, setMessage] = useState(mission.tutorial ? "Tap or drag a top piece to a matching tube" : mission.objective);
   const [mechanicFlash, setMechanicFlash] = useState(null);
   const [pieceEffects, setPieceEffects] = useState({});
   const [tubeBursts, setTubeBursts] = useState({});
@@ -796,6 +797,8 @@ export default function GameplayScene({
       tubes: structuredClone(tubes), moves, bonusCoins, comboCharge, rainbowUses, vaultOpened, timeLeft, rescueUses,
     }].slice(-12));
     setTubes(result.tubes);
+    // Hide the mission instruction behind the completion overlay when the last sort lands.
+    if (isSorted(result.tubes)) onCompletionChange?.(true);
     if (result.unlockedChainIds.length) {
       triggerPieceEffects(result.unlockedChainIds, "chain-break");
       flashMechanic("Chain cracked! Keep matching to unlock the piece");
@@ -857,7 +860,7 @@ export default function GameplayScene({
     setMessage(result.vaultUnlocked ? "Golden vault claimed!" : result.completedTube ? "Super Sort! Tube complete!" : result.triple ? "Triple! Keep going" : "Nice move!");
   }, [dragging, paused, timeUp, completed, tubes, mechanics, board.targetColor, vaultOpened,
       moves, bonusCoins, comboCharge, rainbowUses, timeLeft, rescueUses, triggerWrongMove,
-      triggerPieceEffects, flashMechanic, triggerTubeBurst]);
+      triggerPieceEffects, flashMechanic, triggerTubeBurst, onCompletionChange]);
 
   const handleInvalidDrop = useCallback(() => {
     if (!dragging) return;
@@ -869,6 +872,7 @@ export default function GameplayScene({
   }, [dragging]);
 
   const resetGame = useCallback(() => {
+    onCompletionChange?.(false);
     playIntroChime();
     setTubes(structuredClone(board.tubes));
     setSelected(null);
@@ -878,7 +882,7 @@ export default function GameplayScene({
     setPieceEffects({});
     setTubeBursts({});
     setMoves(0);
-    setMessage(mission.tutorial ? "Drag the top piece to a matching tube" : mission.objective);
+    setMessage(mission.tutorial ? "Tap or drag the top piece to a matching tube" : mission.objective);
     setCoinPlay(false);
     setGemPlay(false);
     rewardRecorded.current = false;
@@ -892,7 +896,7 @@ export default function GameplayScene({
     setVaultOpened(false);
     setHintUses(1);
     setUndoHistory([]);
-  }, [board, initialTime, mission.tutorial, mission.objective]);
+  }, [board, initialTime, mission.tutorial, mission.objective, onCompletionChange]);
 
   function spendBooster(kind) {
     const count = kind === "undo" ? undoUses : hintUses;
@@ -930,9 +934,11 @@ export default function GameplayScene({
     const locked = tubes.some((tube) => tube.sealed || tube.objects.some((piece) => piece.frozen || piece.chainLayers > 0));
     if (!locked) return;
     setUndoHistory((history) => [...history, { tubes: structuredClone(tubes), moves, bonusCoins, comboCharge, rainbowUses, vaultOpened, timeLeft, rescueUses }].slice(-12));
-    setTubes((current) => current.map((tube) => ({
+    const rescuedTubes = tubes.map((tube) => ({
       ...tube, sealed: false, objects: tube.objects.map((piece) => ({ ...piece, frozen: false, chainLayers: 0 })),
-    })));
+    }));
+    setTubes(rescuedTubes);
+    if (isSorted(rescuedTubes)) onCompletionChange?.(true);
     setRescueUses((uses) => uses - 1);
     setMoves((count) => count + 3);
     flashMechanic("Rescue activated! Ice, chains and gates cleared.");
@@ -1002,70 +1008,75 @@ export default function GameplayScene({
 
   const dragLayerRef = useRef(null);
 
+  const isTutorialStart = moves === 0 && !completed && !timeUp && !paused;
+  const shouldShowMechanics = mechanics.chains || mechanics.frozen || mechanics.bombs || mechanics.tripleBurst || mechanics.mystery || mechanics.key;
+  const shouldShowComboHud = comboCharge > 0 || rainbowUses > 0;
+  const primaryCoachText = openingTip && mission.id <= 2 && isTutorialStart
+    ? `Tap tube ${openingTip.from + 1}, then tube ${openingTip.to + 1}`
+    : message;
+  const showRescue = rescueUses > 0 && tubes.some((tube) => tube.sealed || tube.objects.some((piece) => piece.frozen || piece.chainLayers > 0));
+
   return (
     <div ref={boardRef} className="relative h-full w-full touch-none select-none overflow-hidden bg-transparent">
-      <div className="absolute inset-x-0 top-[8vh] bottom-[16vh] flex flex-col items-center justify-center gap-[1.4vh] px-3">
-        <div className="z-20 max-w-[94%] rounded-xl border border-cyan-300/20 sv-theme-panel bg-[#041827]/85 px-3 py-1.5 text-center shadow-lg backdrop-blur-sm">
-          <div className="text-[10px] font-black text-yellow-100">{mission.title} {mission.chapterFinale ? "✦" : ""}</div>
-          <div className="text-[9px] leading-snug text-white/75">{mission.objective}</div>
-          {board.targetColor && <div className="mt-0.5 text-[9px] font-bold text-yellow-300">{vaultOpened ? "Vault opened ✓" : `Golden vault: complete a ${board.targetColor} tube`}</div>}
-        </div>
-        {(mechanics.chains || mechanics.frozen || mechanics.bombs || mechanics.tripleBurst || mechanics.mystery || mechanics.key) && (
-          <div className="pointer-events-none z-20 flex items-center gap-2 rounded-full border border-white/12 sv-theme-chip bg-[#041827]/80 px-3.5 py-1.5 text-[8px] font-bold uppercase tracking-wide text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-md">
+      {/* Reserve a real board area between the title and the toolbar.
+          Previous absolute HUD layers overlapped the lower shelf on phones. */}
+      <div className="absolute inset-x-0 top-[clamp(112px,19dvh,132px)] bottom-[calc(104px+env(safe-area-inset-bottom))] flex min-h-0 flex-col items-center justify-center gap-[clamp(5px,1dvh,10px)] px-3">
+        {(shouldShowMechanics || board.targetColor) && (
+          <div className="pointer-events-none z-20 flex max-w-[95%] flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/15 sv-theme-chip bg-[#041827]/85 px-3 py-1.5 text-[10px] font-semibold leading-4 text-white/85 shadow-lg backdrop-blur-sm">
             {mechanics.chains && <span className="inline-flex items-center gap-1"><ChainIcon className="h-3 w-3" /> Chains</span>}
             {mechanics.frozen && <span className="inline-flex items-center gap-1"><Snowflake className="h-3 w-3" /> Ice</span>}
             {mechanics.bombs && <span className="inline-flex items-center gap-1"><Bomb className="h-3 w-3" /> Bombs</span>}
             {mechanics.tripleBurst && <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3" /> Triples</span>}
             {mechanics.key && <span>Key vault</span>}
             {mechanics.mystery && <span>Mystery</span>}
+            {board.targetColor && <span className="text-yellow-200">{vaultOpened ? "Vault opened ✓" : `Golden vault: ${board.targetColor}`}</span>}
           </div>
         )}
-
-        <div className="flex w-full flex-1 flex-col items-center justify-center gap-[2.6vh]">
-        <div className="flex w-full flex-col items-center">
-          <TubeRow
-            tubes={tubes.slice(0, 4)}
-            selected={selected}
-            dragging={dragging}
-            onObjectStart={handleObjectStart}
-            shakingTubeId={shakingTubeId}
-            mechanics={mechanics}
-            pieceEffects={pieceEffects}
-            tubeBursts={tubeBursts}
-            guide={openingTip && moves === 0 && !paused ? openingTip : null}
-          />
-          <Shelf />
-        </div>
-        <div className="flex w-full flex-col items-center">
-          <TubeRow
-            tubes={tubes.slice(4, 8)}
-            selected={selected}
-            dragging={dragging}
-            onObjectStart={handleObjectStart}
-            shakingTubeId={shakingTubeId}
-            mechanics={mechanics}
-            pieceEffects={pieceEffects}
-            tubeBursts={tubeBursts}
-            guide={openingTip && moves === 0 && !paused ? openingTip : null}
-          />
-          <Shelf />
-        </div>
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[clamp(8px,2dvh,18px)]">
+          <div className="flex w-full flex-col items-center">
+            <TubeRow
+              tubes={tubes.slice(0, 4)}
+              selected={selected}
+              dragging={dragging}
+              onObjectStart={handleObjectStart}
+              shakingTubeId={shakingTubeId}
+              mechanics={mechanics}
+              pieceEffects={pieceEffects}
+              tubeBursts={tubeBursts}
+              guide={openingTip && moves === 0 && !paused ? openingTip : null}
+            />
+            <Shelf />
+          </div>
+          <div className="flex w-full flex-col items-center">
+            <TubeRow
+              tubes={tubes.slice(4, 8)}
+              selected={selected}
+              dragging={dragging}
+              onObjectStart={handleObjectStart}
+              shakingTubeId={shakingTubeId}
+              mechanics={mechanics}
+              pieceEffects={pieceEffects}
+              tubeBursts={tubeBursts}
+              guide={openingTip && moves === 0 && !paused ? openingTip : null}
+            />
+            <Shelf />
+          </div>
         </div>
       </div>
 
       {!completed && !timeUp && (
-        <div className="absolute inset-x-0 bottom-[calc(6.6rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-1.5">
-          <div className="rounded-full border border-fuchsia-300/25 bg-[#281444]/80 px-3 py-1 text-[9px] font-black text-fuchsia-100" aria-label="Combo meter">
-            Combo charge {comboCharge}/2 · Rainbow hints {rainbowUses}
+        <div className="absolute inset-x-0 bottom-[max(10px,env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-3">
+          <div role="status" aria-live="polite" className="flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-cyan-300/15 sv-theme-panel bg-[#031a2a]/85 px-3 py-1.5 text-center text-[11px] font-semibold leading-4 text-cyan-100/85">
+            <span>{primaryCoachText}</span>
+            {shouldShowComboHud && <span className="font-bold text-fuchsia-200">Combo {comboCharge}/2{rainbowUses > 0 ? ` · Rainbow ${rainbowUses}` : ""}</span>}
           </div>
-          {rescueUses > 0 && tubes.some((tube) => tube.sealed || tube.objects.some((piece) => piece.frozen || piece.chainLayers > 0)) && (
-            <button type="button" disabled={paused} onClick={rescueBlockedPieces} className="rounded-full border border-blue-300/40 bg-blue-950/80 px-3 py-1 text-[9px] font-bold text-blue-100 disabled:opacity-40">
-              Stuck? Rescue locks (+3 moves)
-            </button>
-          )}
-          <div className="flex justify-center gap-3">
-          <button type="button" onClick={undoMove} disabled={paused || !undoHistory.length} className="rounded-full border border-cyan-300/40 sv-theme-chip bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Undo · {undoUses ? "Free" : "30 coins"}</button>
-          <button type="button" onClick={showHint} disabled={paused} className="rounded-full border border-yellow-300/40 sv-theme-chip bg-[#06243a]/95 px-4 py-2 text-xs font-bold disabled:opacity-40">Hint · {rainbowUses ? "Rainbow" : hintUses ? "Free" : "50 coins"}</button>
+          <div className="sv-game-toolbar flex w-full items-center justify-center gap-2 max-[375px]:gap-1">
+            <span className="shrink-0 rounded-full border border-cyan-300/20 sv-theme-panel bg-[#031a2a]/90 px-2 py-2 text-[11px] max-[375px]:px-1.5 max-[375px]:text-[10px] font-bold text-cyan-100">{moves} moves</span>
+            <button type="button" onClick={undoMove} disabled={paused || !undoHistory.length} aria-label={undoUses ? "Undo last move free" : "Undo last move for 30 coins"} className="min-h-11 shrink-0 rounded-full border border-cyan-300/40 sv-theme-chip bg-[#06243a]/95 px-3 py-2 text-[11px] max-[375px]:px-2 max-[375px]:text-[10px] font-bold disabled:opacity-40">Undo · {undoUses ? "Free" : "30"}</button>
+            <button type="button" onClick={showHint} disabled={paused} aria-label={rainbowUses || hintUses ? "Get free hint" : "Get hint for 50 coins"} className="min-h-11 shrink-0 rounded-full border border-yellow-300/40 sv-theme-chip bg-[#06243a]/95 px-3 py-2 text-[11px] max-[375px]:px-2 max-[375px]:text-[10px] font-bold disabled:opacity-40">Hint · {rainbowUses ? "Rainbow" : hintUses ? "Free" : "50"}</button>
+            {showRescue && (
+              <button type="button" onClick={rescueBlockedPieces} disabled={paused} aria-label="Rescue frozen or locked pieces, costs three moves" className="min-h-11 rounded-full border border-blue-300/40 sv-theme-chip bg-blue-950/90 px-2.5 py-2 text-[11px] max-[375px]:px-2 max-[375px]:text-[10px] font-bold text-blue-100 disabled:opacity-40">Rescue</button>
+            )}
           </div>
         </div>
       )}
@@ -1092,40 +1103,6 @@ export default function GameplayScene({
           {mechanicFlash}
         </div>
       )}
-
-      {/* =================================================
-          STATUS
-      ================================================= */}
-
-      <div className={`pointer-events-none absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[9px] font-semibold backdrop-blur ${message.toLowerCase().includes("wrong") ? "border-red-400/30 bg-red-950/80 text-red-300" : message.toLowerCase().includes("good") ? "border-emerald-300/25 bg-emerald-950/70 text-emerald-200" : "border-cyan-300/15 sv-theme-panel bg-[#031a2a]/80 text-cyan-100/65"}`}>
-        Moves: {moves} · {message}
-      </div>
-
-      {/* Drag & Drop hint — only shown before the player's first move */}
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute bottom-4 left-1/2 z-30 w-[78%] -translate-x-1/2 transition-all duration-500 ${
-          moves === 0 && !completed && !timeUp && !paused
-            ? "translate-y-0 opacity-100"
-            : "translate-y-2 opacity-0"
-        }`}
-      >
-        <div className="rounded-2xl border border-cyan-300/25 sv-theme-chip bg-[#06243a]/90 px-4 py-3 text-center shadow-[0_10px_35px_rgba(0,0,0,0.5)] backdrop-blur-md">
-          <div className="flex items-center justify-center gap-4">
-            <span className="text-2xl font-light text-cyan-200/65">←</span>
-
-            <div>
-              <div className="text-sm font-black">Drag &amp; Drop</div>
-
-              <div className="mt-0.5 text-[9px] font-medium text-white/60">
-                {openingTip && mission.id <= 2 ? `Try tube ${openingTip.from + 1} → ${openingTip.to + 1}` : "to sort the objects"}
-              </div>
-            </div>
-
-            <span className="text-2xl font-light text-cyan-200/65">→</span>
-          </div>
-        </div>
-      </div>
 
       {completed && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
@@ -1263,8 +1240,10 @@ export default function GameplayScene({
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => {
-                    resetGame();
-                    onTogglePause?.();
+                    if (window.confirm("Restart this puzzle? Your current moves will be reset.")) {
+                      resetGame();
+                      onTogglePause?.();
+                    }
                   }}
                   className="rounded-xl border border-cyan-300/25 sv-theme-chip bg-[#0a3048] py-3 text-sm font-black text-cyan-100 transition active:scale-[0.98]"
                 >
@@ -1283,13 +1262,6 @@ export default function GameplayScene({
         </div>
       )}
 
-      {/* Reset button */}
-      <button
-        onClick={resetGame}
-        className="absolute bottom-[88px] right-3 z-30 rounded-full border border-cyan-300/25 sv-theme-chip bg-[#06243a]/90 px-3 py-1.5 text-[8px] font-black text-cyan-100/80 shadow-[0_0_10px_rgba(0,190,255,0.10)] backdrop-blur transition hover:border-cyan-200/70 hover:bg-[#0b3b59] hover:text-white hover:shadow-[0_0_16px_rgba(0,190,255,0.28)] active:scale-95"
-      >
-        Reset
-      </button>
     </div>
   );
 }
@@ -1373,7 +1345,7 @@ function Tube({ tube, selected, dragging, onObjectStart, shaking, pieceEffects, 
     <div
       className="flex flex-col items-center"
       style={{
-        width: "min(19vw, 8.6dvh, 86px)",
+        width: "min(19vw, var(--sv-tube-width, 6.8dvh), 72px)",
         animation: shaking ? "tube-shake 420ms ease-in-out" : undefined,
       }}
     >

@@ -61,14 +61,11 @@ export default function SplashLoader() {
     let finished = 0;
     tasks.forEach((task) => task.then(() => { finished += 1; real.current = finished / tasks.length; }));
 
-    // Preloading the heavy 3D route on a small mobile WebView can compete
-    // with user taps and screen hydration. Keep that optimization on desktop.
-    if (window.matchMedia?.("(min-width: 768px)").matches && !navigator.connection?.saveData) {
-      try {
-        router.prefetch("/gameplay");
-        router.prefetch("/levels");
-      } catch {}
-    }
+    // warm up the screens the player is most likely to open next
+    try {
+      router.prefetch("/gameplay");
+      router.prefetch("/levels");
+    } catch {}
 
     // ---- smooth progress -------------------------------------------------
     const start = performance.now();
