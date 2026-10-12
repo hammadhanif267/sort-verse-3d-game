@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "@/components/ReliableLink";
+import ScreenBackButton from "@/components/ScreenBackButton";
 import { ChevronLeft, Sparkles, Palette } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
@@ -145,10 +146,10 @@ export default function CityPage() {
           <div className="sv-phone relative flex h-full min-h-0 flex-col overflow-hidden bg-[#020d18]">
             {/* Header */}
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link href="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
+              <ScreenBackButton fallback="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Your City</span>
-              </Link>
+              </ScreenBackButton>
 
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">

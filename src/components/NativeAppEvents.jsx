@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isNative } from "@/lib/native";
 import { setAppActive } from "@/lib/sound";
-import { pushWithFallback } from "@/lib/navigationFallback";
+import { syncPageHistory } from "@/lib/pageHistory";
+import { goToPreviousScreen } from "@/components/ScreenBackButton";
 
 export default function NativeAppEvents() {
   const router = useRouter();
@@ -20,6 +21,16 @@ export default function NativeAppEvents() {
     return () => {
       window.removeEventListener("storage", syncComfort);
       window.removeEventListener("sortverse-progress", syncComfort);
+    };
+  }, []);
+  useEffect(() => {
+    syncPageHistory();
+    const sync = () => syncPageHistory();
+    window.addEventListener("popstate", sync);
+    window.addEventListener("pageshow", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("pageshow", sync);
     };
   }, []);
   useEffect(() => {
@@ -39,18 +50,15 @@ export default function NativeAppEvents() {
             window.dispatchEvent(new Event("sortverse-native-back"));
           } else if (path === "/") {
             if (window.confirm("Exit SortVerse 3D?")) App.exitApp();
-          } else if (["/skins", "/trophies"].includes(path)) {
-            pushWithFallback(router, "/profile");
-          } else if (path === "/special") {
-            pushWithFallback(router, "/journey");
-          } else if (path === "/journey") {
-            pushWithFallback(router, "/levels");
-          } else if (path === "/settings") {
-            pushWithFallback(router, "/profile");
-          } else if (window.history.length > 1) {
-            window.history.back();
           } else {
-            pushWithFallback(router, "/");
+            const fallback = {
+              "/skins": "/profile",
+              "/trophies": "/profile",
+              "/settings": "/profile",
+              "/journey": "/levels",
+              "/special": "/journey",
+            }[path] || "/";
+            goToPreviousScreen(router, fallback);
           }
         });
         if (!active) { back.remove(); return; }

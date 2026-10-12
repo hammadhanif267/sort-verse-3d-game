@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "@/components/ReliableLink";
+import ScreenBackButton from "@/components/ScreenBackButton";
 import { ChevronLeft, LockKeyhole, Star, Map } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import LevelArt from "@/components/LevelArt";
@@ -92,10 +93,10 @@ export default function LevelsPage() {
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.48),rgba(2,13,24,.88))]" />
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link href="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
+              <ScreenBackButton fallback="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Level Selection</span>
-              </Link>
+              </ScreenBackButton>
 
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[9px] font-bold">

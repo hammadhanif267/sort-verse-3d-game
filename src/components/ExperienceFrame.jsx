@@ -1,5 +1,5 @@
 "use client";
-import Link from "@/components/ReliableLink";
+import ScreenBackButton from "@/components/ScreenBackButton";
 import { ChevronLeft } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
@@ -9,7 +9,7 @@ export default function ExperienceFrame({ title, subtitle, back = "/", children 
     <div className="sv-stage flex h-full justify-center bg-[radial-gradient(circle_at_50%_20%,rgba(15,145,205,.17),transparent_55%)]">
       <div className="sv-frame sv-phone flex h-full w-full max-w-[430px] min-h-0 flex-col overflow-hidden bg-[#031424] sm:rounded-3xl sm:border sm:border-cyan-500/30">
         <header className="relative z-10 shrink-0 border-b border-cyan-300/15 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-          <Link href={back} className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-cyan-200"><ChevronLeft size={18}/>Back</Link>
+          <ScreenBackButton fallback={back} aria-label={`Back from ${title}`} className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-cyan-200"><ChevronLeft size={18}/>Back</ScreenBackButton>
           <h1 className="text-[24px] font-black leading-tight">{title}</h1>
           {subtitle && <p className="mt-1 text-[12px] leading-5 text-white/65">{subtitle}</p>}
         </header>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { scheduleNavigationFallback } from "@/lib/navigationFallback";
+import { trackForwardNavigation } from "@/lib/pageHistory";
 
 /**
  * All in-game screen links use the normal Next.js transition first, keeping
@@ -13,6 +14,7 @@ export default function ReliableLink({ href, onClick, target, download, children
   const handleClick = (event) => {
     onClick?.(event);
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || download != null || (target && target !== "_self")) return;
+    trackForwardNavigation(href);
     scheduleNavigationFallback(href);
   };
 

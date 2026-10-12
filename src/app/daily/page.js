@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "@/components/ReliableLink";
+import ScreenBackButton from "@/components/ScreenBackButton";
 import { ChevronLeft, Flame, Gift } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { usePlayerStats } from "@/lib/playerStats";
@@ -316,13 +317,13 @@ export default function DailyChallengePage() {
 
             {/* Header */}
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link
-                href="/"
+              <ScreenBackButton
+                fallback="/"
                 className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white"
               >
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Daily Challenge</span>
-              </Link>
+              </ScreenBackButton>
 
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 rounded-full border border-yellow-400/30 sv-theme-chip bg-[#06243a] px-2 py-1 text-[10px] font-bold">
@@ -336,9 +337,9 @@ export default function DailyChallengePage() {
               </div>
             </header>
 
-            <section className="relative z-10 flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-4 py-4">
+            <section className="game-scroll relative z-10 flex min-h-0 flex-1 flex-col items-stretch justify-start gap-3 overflow-y-auto overscroll-contain px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-4">
               {/* Streak summary strip */}
-              <div className="flex items-center justify-between rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.3)] backdrop-blur">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#04182a]/85 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.3)] backdrop-blur">
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full sv-theme-chip bg-[#0c3a58]/70 ring-1 ring-cyan-300/20">
                     <CalendarIcon className="h-5 w-5" />
@@ -371,82 +372,8 @@ export default function DailyChallengePage() {
                 </div>
               </div>
 
-              <section className="mt-3 rounded-2xl border border-violet-300/30 bg-[#211436]/85 p-3" aria-label="Monthly daily puzzle collection">
-                <div className="flex items-center gap-2 text-sm font-black text-violet-100"><Gift size={18}/> Monthly Puzzle Collection</div>
-                <p className="mt-1 text-[11px] leading-4 text-white/70">Complete seven different Daily Puzzles this calendar month to unlock the Aurora tube skin. Free gifts do not count.</p>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-fuchsia-400" style={{width:`${Math.min(100,monthlyCount / 7 * 100)}%`}}/></div>
-                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold"><span>{Math.min(monthlyCount,7)} / 7 puzzles</span>{monthlyClaimed ? <span className="text-emerald-300">Unlocked ✓</span> : <button onClick={collectMonthly} disabled={monthlyCount < 7} type="button" className="min-h-10 rounded-lg bg-violet-500 px-3 text-white disabled:bg-slate-700 disabled:text-white/40">Claim Aurora</button>}</div>
-                {monthlyStatus && <p role="status" className="mt-2 text-xs text-cyan-200">{monthlyStatus}</p>}
-              </section>
-              {/* 7-day streak row */}
-              <div className="mt-3 grid grid-cols-7 gap-1.5">
-                {weekDays.map((d, i) => {
-                  const key = dateKey(d);
-                  const isToday = key === todayKey;
-                  const isPast =
-                    d <
-                    new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                  const done = Boolean(dailyLog[key] || freeClaimLog[key]);
-                  const kind = DAY_REWARD_KIND[i];
-
-                  return (
-                    <div key={key} className="flex flex-col items-center gap-1">
-                      <span
-                        className={`text-[7px] font-bold uppercase tracking-wide ${isToday ? "text-yellow-200/90" : done ? "text-emerald-200/60" : "text-white/35"}`}
-                      >
-                        {DAY_LABELS[i]}
-                      </span>
-
-                      <div
-                        className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition ${
-                          done
-                            ? "border-emerald-300/70 bg-gradient-to-b from-[#1f8a56] to-[#0c4a2f] shadow-[0_0_12px_rgba(52,211,153,0.35)]"
-                            : isToday
-                              ? "border-yellow-300/80 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_0_14px_rgba(255,180,0,0.4)]"
-                              : isPast
-                                ? "border-white/10 bg-[#08131e] opacity-50"
-                                : "border-white/10 bg-[#08131e]"
-                        }`}
-                      >
-                        {done ? (
-                          <CheckCircleIcon className="h-6 w-6" />
-                        ) : isToday ? (
-                          <span className="text-[13px] font-black text-[#241300]">
-                            {d.getDate()}
-                          </span>
-                        ) : isPast ? (
-                          <span className="text-[10px] font-bold text-white/30">
-                            {d.getDate()}
-                          </span>
-                        ) : (
-                          <LockIcon
-                            className="h-3.5 w-3.5 text-white/25"
-                            strokeWidth={2.2}
-                          />
-                        )}
-                      </div>
-
-                      {/* Reward preview under every claimed day and every upcoming day */}
-                      {done || (!isToday && !isPast) ? (
-                        <span className="flex h-[9px] w-[9px] items-center justify-center leading-none">
-                          {kind === "gift" ? (
-                            <GiftIcon className="h-[9px] w-[9px]" />
-                          ) : kind === "gem" ? (
-                            <HomeGemIcon className="h-[9px] w-[9px]" />
-                          ) : (
-                            <HomeCoinIcon className="h-[9px] w-[9px]" />
-                          )}
-                        </span>
-                      ) : (
-                        <span className="h-[9px]" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
               {/* Today's puzzle */}
-              <div className="mt-4 rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="shrink-0 rounded-3xl border border-cyan-300/20 sv-theme-chip bg-[#06243a]/85 p-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200/70">
                     Today&apos;s Puzzle
@@ -491,7 +418,7 @@ export default function DailyChallengePage() {
               </div>
 
               {/* Free daily claim */}
-              <div className="relative mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-yellow-300/25 bg-gradient-to-r from-[#3a2a06]/70 to-[#06243a]/70 px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur">
+              <div className="relative flex shrink-0 items-center justify-between gap-3 overflow-hidden rounded-2xl border border-yellow-300/25 bg-gradient-to-r from-[#3a2a06]/70 to-[#06243a]/70 px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur">
                 {claimCelebrate && <CelebrationPetals />}
                 <FlyingRewards
                   active={claimCoinFly}
@@ -544,8 +471,82 @@ export default function DailyChallengePage() {
                 </button>
               </div>
 
+              {/* 7-day streak row */}
+              <div className="grid shrink-0 grid-cols-7 gap-1.5 rounded-2xl border border-cyan-300/10 bg-[#041827]/55 px-2 py-3">
+                {weekDays.map((d, i) => {
+                  const key = dateKey(d);
+                  const isToday = key === todayKey;
+                  const isPast =
+                    d <
+                    new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  const done = Boolean(dailyLog[key] || freeClaimLog[key]);
+                  const kind = DAY_REWARD_KIND[i];
+
+                  return (
+                    <div key={key} className="flex flex-col items-center gap-1">
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? "text-yellow-200/90" : done ? "text-emerald-200/60" : "text-white/35"}`}
+                      >
+                        {DAY_LABELS[i]}
+                      </span>
+
+                      <div
+                        className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                          done
+                            ? "border-emerald-300/70 bg-gradient-to-b from-[#1f8a56] to-[#0c4a2f] shadow-[0_0_12px_rgba(52,211,153,0.35)]"
+                            : isToday
+                              ? "border-yellow-300/80 bg-gradient-to-b from-[#ffd21a] to-[#ff8500] shadow-[0_0_14px_rgba(255,180,0,0.4)]"
+                              : isPast
+                                ? "border-white/10 bg-[#08131e] opacity-50"
+                                : "border-white/10 bg-[#08131e]"
+                        }`}
+                      >
+                        {done ? (
+                          <CheckCircleIcon className="h-6 w-6" />
+                        ) : isToday ? (
+                          <span className="text-[13px] font-black text-[#241300]">
+                            {d.getDate()}
+                          </span>
+                        ) : isPast ? (
+                          <span className="text-[10px] font-bold text-white/30">
+                            {d.getDate()}
+                          </span>
+                        ) : (
+                          <LockIcon
+                            className="h-3.5 w-3.5 text-white/25"
+                            strokeWidth={2.2}
+                          />
+                        )}
+                      </div>
+
+                      {/* Reward preview under every claimed day and every upcoming day */}
+                      {done || (!isToday && !isPast) ? (
+                        <span className="flex h-[9px] w-[9px] items-center justify-center leading-none">
+                          {kind === "gift" ? (
+                            <GiftIcon className="h-[9px] w-[9px]" />
+                          ) : kind === "gem" ? (
+                            <HomeGemIcon className="h-[9px] w-[9px]" />
+                          ) : (
+                            <HomeCoinIcon className="h-[9px] w-[9px]" />
+                          )}
+                        </span>
+                      ) : (
+                        <span className="h-[9px]" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <section className="shrink-0 rounded-2xl border border-violet-300/30 bg-[#211436]/85 p-3" aria-label="Monthly daily puzzle collection">
+                <div className="flex items-center gap-2 text-sm font-black text-violet-100"><Gift size={18}/> Monthly Puzzle Collection</div>
+                <p className="mt-1 text-[11px] leading-4 text-white/70">Complete seven different Daily Puzzles this calendar month to unlock the Aurora tube skin. Free gifts do not count.</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-fuchsia-400" style={{width:`${Math.min(100,monthlyCount / 7 * 100)}%`}}/></div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold"><span>{Math.min(monthlyCount,7)} / 7 puzzles</span>{monthlyClaimed ? <span className="text-emerald-300">Unlocked ✓</span> : <button onClick={collectMonthly} disabled={monthlyCount < 7} type="button" className="min-h-10 rounded-lg bg-violet-500 px-3 text-white disabled:bg-slate-700 disabled:text-white/40">Claim Aurora</button>}</div>
+                {monthlyStatus && <p role="status" className="mt-2 text-xs text-cyan-200">{monthlyStatus}</p>}
+              </section>
               {/* Streak explainer */}
-              <p className="mt-3 px-1 text-center text-[10px] leading-relaxed text-white/35">
+              <p className="shrink-0 px-1 pb-1 text-center text-[11px] leading-relaxed text-white/50">
                 Claim your daily gift or complete the daily puzzle to mark that
                 day complete. Keep the streak alive for 7 days to earn the bonus
                 gift.
