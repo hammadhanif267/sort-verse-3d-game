@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { Camera, Check, ChevronLeft, Pencil, ShieldCheck, Video, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { AVATAR_PRESETS, AvatarShowcase, inferAvatarGender } from "@/components/RankBits";
@@ -259,7 +259,7 @@ export default function ProfilePage() {
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,31,49,.5),rgba(2,13,24,.9))]" />
 
             <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-cyan-300/10 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <Link href="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
+              <Link href="/" className="flex min-h-11 items-center gap-2 text-white/80 transition hover:text-white">
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.4} />
                 <span className="text-sm font-bold">Profile</span>
               </Link>

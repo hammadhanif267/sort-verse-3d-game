@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { CheckCircle, LockKeyhole, Sparkles } from "lucide-react";
 import ExperienceFrame from "@/components/ExperienceFrame";
 import { SPECIAL_MISSIONS, readRecord } from "@/lib/playerExperience";

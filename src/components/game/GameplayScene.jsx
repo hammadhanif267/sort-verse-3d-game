@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStats } from "@/lib/playerStats";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { AlarmClock, Bomb, Home, Pause, Play, Snowflake, Sparkles, Star, Trophy } from "lucide-react";
 import { HomeCoinIcon, HomeGemIcon } from "@/components/icons";
-import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound } from "@/lib/sound";
+import { playDragDropSound, playGoodVoice, playTubeCompleteSound, playWrongMoveSound, playIntroChime, playChainBreakSound, playPopBurstSound, playBombExplosionSound, playKidVoice, playCoinCollectSound, playDangerAlarm } from "@/lib/sound";
 import { showCongrats } from "@/components/CongratsToast";
 import { computeCityProgress } from "@/lib/cityProgress";
 import { computeScore, getLeague } from "@/lib/ranking";
 import { calculateLevelAward } from "@/lib/rewards";
 import { vibrate } from "@/lib/native";
+import { shouldPlayDangerAlarm } from "@/lib/dangerAlarm";
 import { scatter } from "@/lib/visualRandom";
 import { getMission, getStarRating } from "@/lib/levelMissions";
 import { applySortMove, findBestHint, findHintDetails, isSorted } from "@/lib/sortMoves";
@@ -590,6 +591,18 @@ export default function GameplayScene({
   useEffect(() => {
     onTimeChange?.(timeLeft);
   }, [timeLeft, onTimeChange]);
+
+  // Warn once when the countdown enters the last 15 seconds, with short
+  // reminders at 10, 5, 3, 2 and 1. Pausing, winning, going to the background
+  // or enabling Casual Mode must never generate a countdown alarm.
+  const previousAlarmTime = useRef(timeLeft);
+  useEffect(() => {
+    const previous = previousAlarmTime.current;
+    previousAlarmTime.current = timeLeft;
+    if (shouldPlayDangerAlarm({ previous, current: timeLeft, paused, completed, timeUp, unlimited: timeIsUnlimited })) {
+      playDangerAlarm({ urgent: timeLeft <= 5 });
+    }
+  }, [timeLeft, timeIsUnlimited, paused, completed, timeUp]);
 
   useEffect(() => {
     if (completed || timeUp || paused || timeIsUnlimited) return undefined;

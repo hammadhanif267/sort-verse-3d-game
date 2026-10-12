@@ -483,6 +483,27 @@ export function playDragDropSound() {
   });
 }
 
+/** A brief two-tone countdown alarm. Respects effects/mute and background state. */
+export function playDangerAlarm({ urgent = false } = {}) {
+  if (!effectsOn() || documentHidden || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
+  const ctx = getContext();
+  if (!ctx || ctx.state !== "running" || !masterGain) return;
+  const bus = ctx.createGain();
+  bus.gain.value = urgent ? 0.65 : 0.48;
+  bus.connect(masterGain);
+  const now = ctx.currentTime + 0.025;
+  playToneBurst(ctx, bus, {
+    notes: urgent ? [82, 88] : [76, 82],
+    start: now,
+    duration: urgent ? 0.18 : 0.15,
+    gain: urgent ? 0.25 : 0.2,
+    type: "square",
+  });
+  window.setTimeout(() => {
+    try { bus.disconnect(); } catch { /* already disconnected */ }
+  }, 800);
+}
+
 export function playWrongMoveSound() {
   if (!effectsOn()) return;
   whenReady(() => {

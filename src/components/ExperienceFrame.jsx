@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { ChevronLeft } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";

@@ -10,9 +10,10 @@
     "build:android": "next build && npx cap sync android",
     "android:init": "npx cap add android && node scripts/configure-android.mjs",
     "android:configure": "node scripts/configure-android.mjs",
-    "test:logic": "node scripts/test-player-experience.mjs && node scripts/test-offline-logic.mjs && node scripts/test-theme.mjs && npm run test:campaign && node scripts/test-sort-moves.mjs && node scripts/test-generated-boards.mjs && npm run test:entry",
+    "test:logic": "node scripts/test-player-experience.mjs && node scripts/test-offline-logic.mjs && node scripts/test-theme.mjs && npm run test:campaign && node scripts/test-sort-moves.mjs && node scripts/test-generated-boards.mjs && npm run test:entry && npm run test:navigation",
     "test:campaign": "node scripts/test-campaign.mjs",
-    "test:entry": "node scripts/test-gameplay-entry.mjs"
+    "test:entry": "node scripts/test-gameplay-entry.mjs",
+    "test:navigation": "node scripts/test-navigation-and-alarm.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

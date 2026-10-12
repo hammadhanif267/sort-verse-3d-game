@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isNative } from "@/lib/native";
 import { setAppActive } from "@/lib/sound";
+import { pushWithFallback } from "@/lib/navigationFallback";
 
 export default function NativeAppEvents() {
   const router = useRouter();
@@ -39,17 +40,17 @@ export default function NativeAppEvents() {
           } else if (path === "/") {
             if (window.confirm("Exit SortVerse 3D?")) App.exitApp();
           } else if (["/skins", "/trophies"].includes(path)) {
-            router.push("/profile");
+            pushWithFallback(router, "/profile");
           } else if (path === "/special") {
-            router.push("/journey");
+            pushWithFallback(router, "/journey");
           } else if (path === "/journey") {
-            router.push("/levels");
+            pushWithFallback(router, "/levels");
           } else if (path === "/settings") {
-            router.push("/profile");
+            pushWithFallback(router, "/profile");
           } else if (window.history.length > 1) {
             window.history.back();
           } else {
-            router.push("/");
+            pushWithFallback(router, "/");
           }
         });
         if (!active) { back.remove(); return; }

@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { useRouter, useSearchParams } from "next/navigation";
 import GameplayScene, { difficultyParams } from "../../components/game/GameplayScene";
 import { TimerIcon } from "@/components/icons";
 import { Pause, Play } from "lucide-react";
 import { playIntroChime } from "@/lib/sound";
+import { pushWithFallback } from "@/lib/navigationFallback";
 import useBackgroundMusic from "@/lib/useBackgroundMusic";
 import { canEnterDifficulty, getMission } from "@/lib/levelMissions";
 import { SPECIAL_MISSIONS } from "@/lib/playerExperience";
@@ -76,7 +77,7 @@ function GameplaySession({ level, difficulty, dailyDate, specialId, casual }) {
   useEffect(() => {
     const onBack = () => {
       if (!paused) setPaused(true);
-      else if (window.confirm("Exit to Home? Your unfinished puzzle is saved automatically.")) router.push("/");
+      else if (window.confirm("Exit to Home? Your unfinished puzzle is saved automatically.")) pushWithFallback(router, "/");
     };
     window.addEventListener("sortverse-native-back", onBack);
     return () => window.removeEventListener("sortverse-native-back", onBack);

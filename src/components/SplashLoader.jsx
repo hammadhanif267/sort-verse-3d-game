@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import LoadingView from "@/components/LoadingView";
 import { AVATAR_PRESETS } from "@/components/RankBits";
 
@@ -42,7 +41,6 @@ function preloadImage(src) {
 }
 
 export default function SplashLoader() {
-  const router = useRouter();
   const [progress, setProgress] = useState(0);
   const [fading, setFading] = useState(false);
   const [gone, setGone] = useState(false);
@@ -60,12 +58,6 @@ export default function SplashLoader() {
     if (document.fonts?.ready) tasks.push(document.fonts.ready.catch(() => {}));
     let finished = 0;
     tasks.forEach((task) => task.then(() => { finished += 1; real.current = finished / tasks.length; }));
-
-    // warm up the screens the player is most likely to open next
-    try {
-      router.prefetch("/gameplay");
-      router.prefetch("/levels");
-    } catch {}
 
     // ---- smooth progress -------------------------------------------------
     const start = performance.now();

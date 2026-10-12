@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { ChevronLeft, Copy, ShieldCheck } from "lucide-react";
 import { exportCode, parseCode, overwriteProgress, queueMirror } from "@/lib/backup";
 import { isMuted, setMuted, setMusicEnabled, setSoundEffectsEnabled } from "@/lib/sound";

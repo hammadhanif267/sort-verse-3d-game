@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import Image from "next/image";
 import { LockKeyhole, Sparkles, Star } from "lucide-react";
 import ExperienceFrame from "@/components/ExperienceFrame";

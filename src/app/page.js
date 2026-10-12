@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ReliableLink";
 import { usePlayerStats } from "@/lib/playerStats";
 import { usePlayerProfile } from "@/lib/ranking";
 import { PreviewableAvatar } from "@/components/AvatarPreview";
@@ -195,7 +195,7 @@ export default function HomePage() {
                 <MenuButton title="Build Your City" href="/city" purple />
               </section>
 
-              <nav aria-label="Extra game activities" className="sv-home-extras mx-auto mb-2 grid w-[94%] grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
+              <nav aria-label="Extra game activities" className="sv-home-extras relative z-30 mx-auto mb-2 grid w-[94%] grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
                 {[["/journey", Map, "Journey"], ["/special", Sparkles, "Missions"], ["/skins", Palette, "Skins"], ["/trophies", Award, "Trophies"]].map(([href, Icon, title]) => (
                   <Link key={href} href={href} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-cyan-300/20 bg-[#082741]/90 text-cyan-100"><Icon size={17}/>{title}</Link>
                 ))}
@@ -222,7 +222,7 @@ function MenuButton({
   href,
   disabled = false,
 }) {
-  const className = `group relative mx-auto flex h-[42px] w-[94%] items-center rounded-full border px-3 text-left transition duration-200 active:scale-[0.99] ${
+  const className = `group relative mx-auto flex min-h-11 w-[94%] items-center rounded-full border px-3 text-left transition duration-200 active:scale-[0.99] ${
     disabled ? "cursor-not-allowed opacity-65" : ""
   } ${
     purple
