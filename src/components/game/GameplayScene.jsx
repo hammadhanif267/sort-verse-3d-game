@@ -926,6 +926,9 @@ export default function GameplayScene({
     setPieceEffects({});
     setTubeBursts({});
     setMoves(0);
+    // A short-lived mechanic alert must never survive Play Again.
+    window.clearTimeout(mechanicFlashTimer.current);
+    setMechanicFlash(null);
     setMessage(mission.tutorial ? "Tap or drag the top piece to a matching tube" : mission.objective);
     setCoinPlay(false);
     setGemPlay(false);
@@ -1122,9 +1125,11 @@ export default function GameplayScene({
 
       {!completed && !timeUp && (
         <div className="absolute inset-x-0 bottom-[max(10px,env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-3">
-          <div role="status" aria-live="polite" className="flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-cyan-300/15 sv-theme-panel bg-[#031a2a]/85 px-3 py-1.5 text-center text-[11px] font-semibold leading-4 text-cyan-100/85">
-            <span>{primaryCoachText}</span>
-            {shouldShowComboHud && <span className="font-bold text-fuchsia-200">Combo {comboCharge}/2{rainbowUses > 0 ? ` · Rainbow ${rainbowUses}` : ""}</span>}
+          {/* Temporary mechanic alerts reuse this reserved feedback row rather
+              than covering the permanent objective underneath the top HUD. */}
+          <div role="status" aria-live="polite" aria-atomic="true" className={`flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border px-3 py-1.5 text-center text-[11px] font-semibold leading-4 backdrop-blur-sm ${mechanicFlash ? "border-yellow-300/35 bg-[#142c39]/95 text-yellow-100" : "border-cyan-300/15 sv-theme-panel bg-[#031a2a]/85 text-cyan-100/85"}`}>
+            <span>{mechanicFlash || primaryCoachText}</span>
+            {shouldShowComboHud && !mechanicFlash && <span className="font-bold text-fuchsia-200">Combo {comboCharge}/2{rainbowUses > 0 ? ` · Rainbow ${rainbowUses}` : ""}</span>}
           </div>
           <div className="sv-game-toolbar flex w-full items-center justify-center gap-2 max-[375px]:gap-1">
             <span className="shrink-0 rounded-full border border-cyan-300/20 sv-theme-panel bg-[#031a2a]/90 px-2 py-2 text-[11px] max-[375px]:px-1.5 max-[375px]:text-[10px] font-bold text-cyan-100">{moves} moves</span>
@@ -1154,20 +1159,16 @@ export default function GameplayScene({
         )}
       </div>
 
-      {mechanicFlash && (
-        <div className="pointer-events-none absolute top-[13%] left-1/2 z-40 -translate-x-1/2 rounded-full border border-yellow-300/30 sv-theme-panel bg-[#061b2b]/95 px-4 py-2 text-[10px] font-black text-yellow-100 shadow-[0_0_22px_rgba(255,210,70,.22)] backdrop-blur-md">
-          {mechanicFlash}
-        </div>
-      )}
-
       {completed && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020b15]/70 px-6 backdrop-blur-sm">
+        <div data-sortverse-level-complete="true" role="dialog" aria-modal="true" aria-labelledby="sv-level-complete-title" className="absolute inset-0 z-50 flex flex-col items-center overflow-y-auto overscroll-contain bg-[#020b15]/80 px-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-sm">
           <CelebrationPetals />
 
-          <div className="w-full rounded-3xl border border-cyan-300/30 sv-theme-chip bg-[#06243a]/95 p-6 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)]">
+          {/* Center on tall screens; allow the whole card to scroll on short
+              phones, including the Next Level / Play Again / Home actions. */}
+          <div className="relative my-auto w-full max-w-sm shrink-0 rounded-3xl border border-cyan-300/30 sv-theme-chip bg-[#06243a]/95 p-4 text-center shadow-[0_0_50px_rgba(0,190,255,0.2)] sm:p-6">
             <Trophy className="mx-auto h-11 w-11 fill-yellow-300/15 text-yellow-300" strokeWidth={1.8} />
 
-            <h2 className="mt-3 text-2xl font-black">Level Complete!</h2>
+            <h2 id="sv-level-complete-title" className="mt-3 text-2xl font-black leading-tight">Level Complete!</h2>
             {specialWon && <p className="mt-2 rounded-lg bg-violet-500/20 p-2 text-xs font-bold text-violet-100">Special Mission cleared! One-time bonus collected.</p>}
 
             <p className="mt-1 text-xs text-white/60">
@@ -1176,11 +1177,11 @@ export default function GameplayScene({
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
-                <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Stars</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/65">Stars</div>
                 <div className="mt-1 flex items-center justify-center gap-1">{Array.from({ length: 3 }, (_, i) => <Star key={i} style={{animationDelay:`${250 + i * 240}ms`}} className={`sv-win-star h-5 w-5 ${i < earnedStars ? "fill-yellow-300 text-yellow-300" : "fill-white/10 text-white/20"}`} strokeWidth={1.6} />)}</div>
               </div>
               <div className="relative rounded-xl border border-white/10 sv-theme-panel bg-[#041a2b]/75 px-3 py-2.5">
-                <div className="text-[8px] uppercase tracking-[0.18em] text-white/40">Reward</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/65">Reward</div>
                 <div className="mt-1 flex items-center justify-center gap-3 text-sm font-black">
                   <span className="relative inline-flex items-center gap-1.5 text-yellow-300">
                     <FlyingRewards active={coinPlay} Icon={HomeCoinIcon} />
@@ -1206,7 +1207,7 @@ export default function GameplayScene({
               <div className="mt-1 text-xl font-black text-cyan-300">
                 {moves}
               </div>
-              <div className="mt-1 text-[9px] text-white/50">3 stars: {board.par + 5} moves · 2 stars: {Math.ceil(board.par * 1.5) + 6}</div>
+              <div className="mt-1 px-2 text-[10px] leading-4 text-white/65">3 stars: {board.par + 5} moves · 2 stars: {Math.ceil(board.par * 1.5) + 6}</div>
             </div>
 
             {level < 12 && <div className="mt-2 rounded-xl border border-cyan-300/15 bg-cyan-400/10 p-2 text-[11px] leading-4 text-cyan-100">Up next: <strong>{getMission(difficulty, level + 1).title}</strong> · {getMission(difficulty, level + 1).objective}</div>}

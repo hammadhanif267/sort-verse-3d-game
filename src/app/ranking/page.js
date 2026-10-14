@@ -27,6 +27,7 @@ export default function RankingPage() {
   const [performanceTab, setPerformanceTab] = useState("scores");
   const [selectedPerformance, setSelectedPerformance] = useState(null);
   const [shareMessage, setShareMessage] = useState("");
+  const [receiptBusy, setReceiptBusy] = useState(null);
   const avatarReceiptRef = useRef(null);
   useBackgroundMusic("menu");
 
@@ -45,6 +46,7 @@ export default function RankingPage() {
 
   function openPerformance(record) {
     setShareMessage("");
+    setReceiptBusy(null);
     setSelectedPerformance(record);
   }
 
@@ -236,6 +238,9 @@ export default function RankingPage() {
   }
 
   async function savePerformanceReceipt(record) {
+    if (receiptBusy) return;
+    setReceiptBusy("saving");
+    setShareMessage("");
     try {
       const blob = await buildReceiptImage(record);
       const url = URL.createObjectURL(blob);
@@ -249,10 +254,15 @@ export default function RankingPage() {
       setShareMessage("Receipt image saved as PNG.");
     } catch {
       setShareMessage("Could not save the receipt image.");
+    } finally {
+      setReceiptBusy(null);
     }
   }
 
   async function sharePerformanceReceipt(record) {
+    if (receiptBusy) return;
+    setReceiptBusy("sharing");
+    setShareMessage("");
     try {
       const blob = await buildReceiptImage(record);
       const filename = record.isOverall ? "sortverse-overall-performance.png" : `sortverse-performance-level-${record.level}.png`;
@@ -275,6 +285,8 @@ export default function RankingPage() {
       }
     } catch (error) {
       if (error?.name !== "AbortError") setShareMessage("Could not share the receipt image.");
+    } finally {
+      setReceiptBusy(null);
     }
   }
 
@@ -466,18 +478,19 @@ export default function RankingPage() {
             </section>
 
             {selectedPerformance && (
-              <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/65 p-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-4">
-                <div className="w-full max-w-[390px] max-h-[calc(100dvh-24px)] overflow-y-auto overscroll-contain rounded-[26px] border border-cyan-300/25 sv-theme-panel bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)] sm:max-h-[calc(100dvh-32px)]">
-                  <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 sv-theme-panel bg-[#061b2b]/95 px-4 py-3 backdrop-blur-md">
+              <div className="absolute inset-0 z-[100] flex min-h-0 items-stretch justify-center bg-black/75 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-[max(8px,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-4">
+                <div role="dialog" aria-modal="true" aria-label={selectedPerformance.isOverall ? "Overall records receipt" : `Level ${selectedPerformance.level} performance receipt`} className="flex h-full max-h-full min-h-0 w-full max-w-[390px] flex-col overflow-hidden rounded-[22px] border border-cyan-300/25 sv-theme-panel bg-[#061b2b] shadow-[0_20px_70px_rgba(0,0,0,.65)] sm:h-auto sm:max-h-[min(100%,760px)] sm:rounded-[26px]">
+                  <div className="z-10 flex shrink-0 items-center justify-between border-b border-white/8 sv-theme-panel bg-[#061b2b]/95 px-4 py-3 backdrop-blur-md">
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-200">{selectedPerformance.isOverall ? "Overall Performance" : "Performance Receipt"}</div>
                       <div className="mt-0.5 text-[10px] text-white/40">{selectedPerformance.isOverall ? "Your complete gameplay progress" : "Your real gameplay result"}</div>
                     </div>
-                    <button type="button" onClick={() => { setSelectedPerformance(null); setShareMessage(""); }} className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2.5 text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Close performance view" title="Back to Ranking"><X className="h-5 w-5" /></button>
+                    <button type="button" onClick={() => { setSelectedPerformance(null); setShareMessage(""); }} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 p-2.5 text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Close performance view" title="Back to Ranking"><X className="h-5 w-5" /></button>
                   </div>
 
-                  <div className="p-4">
-                    <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#08263b] p-4">
+                  {/* Only receipt details scroll. Save and Share stay visible on short phone screens. */}
+                  <div className="game-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4" tabIndex={0} aria-label="Scrollable receipt details">
+                    <div className="rounded-2xl border border-cyan-300/15 sv-theme-panel bg-[#08263b] p-3 sm:p-4">
                       <div className="text-center text-lg font-black tracking-wide">SORTVERSE 3D</div>
                       <div className="mt-0.5 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">{selectedPerformance.isOverall ? "Overall Performance Receipt" : "Performance Receipt"}</div>
                       <div className="my-4 h-px bg-white/10" />
@@ -515,18 +528,25 @@ export default function RankingPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => savePerformanceReceipt(selectedPerformance)} className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3 py-2.5 text-[10px] font-black text-cyan-100 transition hover:bg-cyan-400/15"><Download className="h-4 w-4" /> {selectedPerformance.isOverall ? "Save Overall Receipt" : "Save Image"}</button>
-                      <button type="button" onClick={() => sharePerformanceReceipt(selectedPerformance)} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-300/20 bg-yellow-400/10 px-3 py-2.5 text-[10px] font-black text-yellow-100 transition hover:bg-yellow-400/15"><Share2 className="h-4 w-4" /> {selectedPerformance.isOverall ? "Share Overall Receipt" : "Share"}</button>
+                  </div>
+
+                  {/* The same actions apply to View All Records and every individual level performance. */}
+                  <div className="z-10 shrink-0 border-t border-cyan-300/20 sv-theme-panel bg-[#061b2b] px-3 pb-3 pt-2.5 shadow-[0_-12px_28px_rgba(0,0,0,.35)] sm:px-4" aria-label="Receipt actions">
+                    <div className="mb-2 text-center text-[11px] font-semibold text-white/65">
+                      {selectedPerformance.isOverall ? "Overall performance receipt" : `Level ${selectedPerformance.level} · ${String(selectedPerformance.difficulty || "normal").toUpperCase()} receipt`}
                     </div>
-                    {shareMessage && <div className="mt-2 text-center text-[10px] font-bold text-white/45">{shareMessage}</div>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" disabled={receiptBusy !== null} onClick={() => savePerformanceReceipt(selectedPerformance)} aria-label={selectedPerformance.isOverall ? "Save all records receipt as PNG" : `Save Level ${selectedPerformance.level} receipt as PNG`} className="flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-cyan-300/40 bg-cyan-400/20 px-2 py-2.5 text-[12px] font-black leading-tight text-cyan-50 transition hover:bg-cyan-400/30 active:scale-[.98] disabled:cursor-wait disabled:opacity-50"><Download className="h-4 w-4 shrink-0" /> {receiptBusy === "saving" ? "Saving…" : "Save Receipt"}</button>
+                      <button type="button" disabled={receiptBusy !== null} onClick={() => sharePerformanceReceipt(selectedPerformance)} aria-label={selectedPerformance.isOverall ? "Share all records receipt" : `Share Level ${selectedPerformance.level} receipt`} className="flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-yellow-300/40 bg-yellow-400/20 px-2 py-2.5 text-[12px] font-black leading-tight text-yellow-50 transition hover:bg-yellow-400/30 active:scale-[.98] disabled:cursor-wait disabled:opacity-50"><Share2 className="h-4 w-4 shrink-0" /> {receiptBusy === "sharing" ? "Sharing…" : "Share Receipt"}</button>
+                    </div>
+                    {shareMessage && <div role="status" aria-live="polite" className="mt-2 text-center text-[11px] font-bold text-white/75">{shareMessage}</div>}
                   </div>
                 </div>
               </div>
             )}
 
             <Link href="/trophies" className="relative z-10 mx-4 mb-2 flex min-h-11 items-center justify-center rounded-xl border border-yellow-300/30 bg-yellow-500/10 text-xs font-black text-yellow-100">View Trophy Book →</Link>
-            <BottomNav active="ranking" />
+            {!selectedPerformance && <BottomNav active="ranking" />}
           </div>
         </div>
       </div>

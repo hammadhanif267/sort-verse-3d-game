@@ -404,3 +404,9 @@ button, a { touch-action: manipulation; }
 :root.sv-low .sv-phone :is(.sv-theme-art, .city-sparkle) { filter: none !important; animation: none !important; }
 :root.sv-low .sv-phone :is(.sv-theme-panel, .sv-theme-chip, .sv-game-toolbar) { backdrop-filter: none !important; box-shadow: none !important; }
 @media (max-height: 620px) { .sv-home-extras { display: none; } }
+
+/* Hide mission instructions behind the Level Complete overlay even when a
+   level is restored in a completed state before the parent HUD has synced. */
+.sv-phone:has([data-sortverse-level-complete]) .sv-mission-instruction {
+  display: none;
+}

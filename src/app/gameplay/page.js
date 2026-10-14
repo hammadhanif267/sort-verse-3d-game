@@ -138,11 +138,13 @@ function GameplaySession({ level, difficulty, dailyDate, specialId, casual }) {
               {/* Level */}
               <div className="mx-2 flex min-w-0 max-w-[220px] flex-1 flex-col items-center gap-1 text-center drop-shadow-lg">
                 <h1 className="text-xl font-black leading-7 tracking-tight">Level {level}</h1>
-                <h2 className="mt-0.5 text-[14px] font-extrabold leading-5 text-cyan-100">{mission.title}</h2>
                 {!levelCompleted && (
-                  <p className="mt-1.5 max-w-[210px] text-[12px] font-medium leading-[1.45] text-white/80">
-                    {mission.objective}
-                  </p>
+                  <>
+                    <h2 className="sv-mission-instruction mt-0.5 text-[14px] font-extrabold leading-5 text-cyan-100">{mission.title}</h2>
+                    <p className="sv-mission-instruction mt-1.5 max-w-[210px] text-[12px] font-medium leading-[1.45] text-white/80">
+                      {mission.objective}
+                    </p>
+                  </>
                 )}
               </div>
 
