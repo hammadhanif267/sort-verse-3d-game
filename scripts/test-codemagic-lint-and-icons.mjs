@@ -13,7 +13,10 @@ assert.ok(rewardEffect.includes('window.setTimeout(() => {'), 'reward state shou
 assert.ok(!rewardEffect.includes('setSpecialWon(true);\n      }'), 'the former synchronous effect update must be removed');
 assert.ok(!/\n\s*setActualReward\(/.test(rewardEffect.split('window.setTimeout(() => {')[0]), 'no direct reward setState in effect');
 assert.ok(!splash.includes('// eslint-disable-next-line react-hooks/exhaustive-deps'), 'unused lint exception removed');
-const config = JSON.parse(fs.readFileSync(path.join(root, 'native-assets/ios/AppIcon.appiconset/Contents.json'), 'utf8'));
+const iconCatalog = path.join(root, 'native-assets/ios/AppIcon.appiconset/Contents.json');
+assert.ok(fs.existsSync(iconCatalog),
+  'Missing iOS icon assets in the checkout. Commit native-assets/ios/AppIcon.appiconset/ to GitHub (git add -f native-assets/ios/AppIcon.appiconset).');
+const config = JSON.parse(fs.readFileSync(iconCatalog, 'utf8'));
 assert.ok(config.images.length >= 15);
 assert.ok(config.images.some(({ idiom, size }) => idiom === 'ios-marketing' && size === '1024x1024'));
 for (const item of config.images) assert.ok(fs.existsSync(path.join(root, 'native-assets/ios/AppIcon.appiconset', item.filename)));
