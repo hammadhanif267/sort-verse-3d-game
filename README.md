@@ -60,3 +60,7 @@ web favicon, and store icon use the updated artwork supplied by the owner.
 Run `npm run test:codemagic` to validate icon installation and release guards.
 See `docs/CODEMAGIC_SETUP.md` for complete cloud build instructions. The
 complete project must be pushed to the Git branch selected in Codemagic.
+
+## Vercel favicon validation
+
+The Next.js 16 favicon has been regenerated as RGBA ICO. Verify it with `node scripts/test-vercel-favicon.mjs`. See `docs/VERCEL_FAVICON_FIX.md` for details.
