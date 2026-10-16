@@ -45,3 +45,51 @@ The ZIP does not include `@capacitor/ios` in the tracked npm lockfile; only iOS 
 - Codemagic Android signing: https://docs.codemagic.io/yaml-code-signing/signing-android/
 - Codemagic iOS signing: https://docs.codemagic.io/yaml-code-signing/signing-ios/
 - Existing Android release instructions: `docs/ANDROID_RELEASE.md`
+
+## October 2026: Codemagic lint failure and custom launcher icon
+
+The earlier `Check lint` step failed in `GameplayScene.jsx` because the React
+Compiler lint rule `react-hooks/set-state-in-effect` rejected synchronous
+`setSpecialWon` and `setActualReward` calls in the level-completion effect.
+Both UI updates now run together in an asynchronous callback; progress and
+reward accounting still execute once and synchronously. An unused ESLint
+suppression was also removed from `SplashLoader.jsx`.
+
+`npm run test:codemagic` now verifies the lint-regression guard, signing/version
+scripts, Android launcher asset names, iOS asset catalog, and repeatable iOS icon
+installation. `npm run lint` and `npm run build` remain required. Do not skip
+lint merely to produce a green CI badge.
+
+The supplied `game-preview-image.png` artwork was center-cropped from 1536x1024
+into a 1024x1024 square. It now supplies:
+
+- `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico` and `public/icons/*`
+- `store-assets/icon-512.png` for the store listing
+- all legacy, round and adaptive Android launcher assets in `native-assets/android/res/`
+- `native-assets/ios/AppIcon.appiconset/` for an optional iOS app
+
+The Android workflow already copies `native-assets/android/res/` during
+`scripts/configure-android.mjs` after `npx cap add android`. The iOS workflows now
+call `node scripts/configure-ios-icons.mjs` after generating/syncing `ios/`,
+before running CocoaPods and Xcode. You do not have to check a generated native
+project into Git to obtain these icons.
+
+### For the next Codemagic build
+
+1. Extract this corrected complete project. Ensure that `codemagic.yaml`,
+   `package.json`, `scripts/` and `native-assets/` are **at the repository root**.
+2. Commit and push the corrected files to the branch Codemagic is building.
+   Do not commit `node_modules`, secrets, keystores, `android/keystore.properties`,
+   or release artifacts.
+3. In Codemagic choose **SortVerse - Android test APK (Mac mini M2)**, not the
+   signed AAB workflow. It generates `android/` because no native platform
+   folder is committed here.
+4. After APK production, download/install it on a device and verify the
+   launcher icon, startup, offline operation and level completion. Only then
+   configure the signed release workflow.
+5. If a later step still fails, copy its full log. A passing lint step does
+   **not** prove Gradle or the app itself will work.
+
+The other game's one-step `npx cap sync android` works when an Android platform
+folder is already present. In this project the cloud workflow first needs
+`npx cap add android` and `scripts/configure-android.mjs`, then `npx cap sync android`.

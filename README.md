@@ -49,3 +49,14 @@ npm ci && npm run test:logic && npm run lint && npm run build && npm run dev
 ## Codemagic cloud builds (Mac mini M2)
 
 The repository-root [`codemagic.yaml`](codemagic.yaml) defines Android debug APK, signed AAB, iOS simulator, and optional signed iOS IPA workflows. See [`docs/CODEMAGIC_SETUP.md`](docs/CODEMAGIC_SETUP.md) for setup, signing, and release requirements. The Android/iOS platform directories are generated during CI.
+
+### Codemagic: patched lint and launcher icon
+
+The project includes `codemagic.yaml` for Mac mini M2 builds, Android debug
+APK, signed Play AAB, and optional iOS workflows. The level-completion React
+Compiler lint regression has been corrected. The Android/iOS launcher icon,
+web favicon, and store icon use the updated artwork supplied by the owner.
+
+Run `npm run test:codemagic` to validate icon installation and release guards.
+See `docs/CODEMAGIC_SETUP.md` for complete cloud build instructions. The
+complete project must be pushed to the Git branch selected in Codemagic.

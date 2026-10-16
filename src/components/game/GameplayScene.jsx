@@ -661,6 +661,7 @@ export default function GameplayScene({
         }
       }
     }
+    let claimedSpecialReward = false;
     if (activeSpecial) {
       const specialPrize = claimSpecial(activeSpecial.id, {
         difficulty, level, hintsUsed: hintCount, rescuesUsed: rescueCount,
@@ -669,10 +670,19 @@ export default function GameplayScene({
       if (specialPrize) {
         awardedCoins += specialPrize.coins;
         awardedGems += specialPrize.diamonds;
-        setSpecialWon(true);
+        claimedSpecialReward = true;
       }
     }
-    setActualReward({ coins: awardedCoins, diamonds: awardedGems });
+    // Rewards are written synchronously once; UI state updates run in the next
+    // task instead of inside the effect body (React Compiler / ESLint-safe).
+    // Both values must update together so victory totals stay consistent.
+    const wonPrize = claimedSpecialReward;
+    const finalCoins = awardedCoins;
+    const finalDiamonds = awardedGems;
+    window.setTimeout(() => {
+      setActualReward({ coins: finalCoins, diamonds: finalDiamonds });
+      if (wonPrize) setSpecialWon(true);
+    }, 0);
     playKidVoice(awardedCoins || awardedGems ? `Level complete! You got ${awardedCoins} gold and ${awardedGems} diamonds!` : "Level complete! Nice replay!");
     window.setTimeout(() => playKidVoice("Amazing! Great job!"), 850);
 

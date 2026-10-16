@@ -89,7 +89,6 @@ export default function SplashLoader() {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (gone) return null;

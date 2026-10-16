@@ -13,7 +13,8 @@
     "test:logic": "node scripts/test-player-experience.mjs && node scripts/test-offline-logic.mjs && node scripts/test-theme.mjs && npm run test:campaign && node scripts/test-sort-moves.mjs && node scripts/test-generated-boards.mjs && npm run test:entry && npm run test:navigation",
     "test:campaign": "node scripts/test-campaign.mjs",
     "test:entry": "node scripts/test-gameplay-entry.mjs",
-    "test:navigation": "node scripts/test-navigation-and-alarm.mjs && node scripts/test-page-history.mjs"
+    "test:navigation": "node scripts/test-navigation-and-alarm.mjs && node scripts/test-page-history.mjs",
+    "test:codemagic": "node scripts/test-codemagic-config.mjs && node scripts/test-codemagic-lint-and-icons.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
