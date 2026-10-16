@@ -14,7 +14,7 @@
     "test:campaign": "node scripts/test-campaign.mjs",
     "test:entry": "node scripts/test-gameplay-entry.mjs",
     "test:navigation": "node scripts/test-navigation-and-alarm.mjs && node scripts/test-page-history.mjs",
-    "test:codemagic": "node scripts/test-codemagic-config.mjs && node scripts/test-codemagic-lint-and-icons.mjs"
+    "test:codemagic": "node scripts/test-codemagic-config.mjs && node scripts/test-codemagic-lint-and-icons.mjs && node scripts/test-android-icon-resources.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

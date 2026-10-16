@@ -83,6 +83,39 @@ function copyTree(from,to){for(const entry of fs.readdirSync(from,{withFileTypes
  if(entry.isDirectory()){fs.mkdirSync(dest,{recursive:true});copyTree(src,dest);}else fs.copyFileSync(src,dest);
 }}
 copyTree(assets,res);
+// Capacitor already creates a color named ic_launcher_background. Earlier
+// SortVerse assets added that same name in sortverse_colors.xml, which caused
+// Android Gradle :app:mergeDebugResources to fail with "Duplicate resources".
+// Keep the generated color definition, change its value, and remove only our
+// obsolete duplicate. This is safe on fresh and previously configured wrappers.
+const valuesDir = path.join(res, "values");
+fs.rmSync(path.join(valuesDir, "sortverse_colors.xml"), { force: true });
+const backgroundDefinition = /<color\b[^>]*\bname\s*=\s*["']ic_launcher_background["'][^>]*>[\s\S]*?<\/color>/g;
+const colorFiles = fs.readdirSync(valuesDir).filter((name) => name.endsWith(".xml"));
+const definitions = colorFiles.flatMap((name) => {
+  const file = path.join(valuesDir, name);
+  const text = fs.readFileSync(file, "utf8");
+  const count = (text.match(backgroundDefinition) || []).length;
+  return count ? [{ file, count }] : [];
+});
+if (definitions.length === 0) {
+  fs.writeFileSync(path.join(valuesDir, "ic_launcher_background.xml"),
+    '<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="ic_launcher_background">#020b15</color></resources>\n');
+} else {
+  // Prefer the default Capacitor resource, but also support a future template
+  // that moves it to values/colors.xml. Remove duplicate entries if present.
+  const preferred = definitions.find(({ file }) => path.basename(file) === "ic_launcher_background.xml")?.file
+    || definitions[0].file;
+  for (const { file } of definitions) {
+    let kept = false;
+    const updated = fs.readFileSync(file, "utf8").replace(backgroundDefinition, (match) => {
+      if (file !== preferred || kept) return "";
+      kept = true;
+      return match.replace(/>[^<]*<\/color>$/, ">#020b15</color>");
+    });
+    fs.writeFileSync(file, updated);
+  }
+}
 const strings = path.join(res, "values/strings.xml");
 edit(strings,text=>text.replace(/(<string name="app_name">)[^<]*(<\/string>)/, '$1SortVerse 3D$2')
  .replace(/(<string name="title_activity_main">)[^<]*(<\/string>)/, '$1SortVerse 3D$2'));
