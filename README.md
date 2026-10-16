@@ -44,3 +44,8 @@ npm ci && npm run test:logic && npm run lint && npm run build && npm run dev
 ```
 
 `npm run build` exports the app into `out/`. Device performance, screenshot appearance, and all 36 obstacles remain to be tested manually. The original game layout and avatar system are unchanged. The gameplay illustrations are original SVG and existing city-stage art; the AI-generated concept storyboard supplied for review is **not** a set of ready-made interactive screens.
+
+
+## Codemagic cloud builds (Mac mini M2)
+
+The repository-root [`codemagic.yaml`](codemagic.yaml) defines Android debug APK, signed AAB, iOS simulator, and optional signed iOS IPA workflows. See [`docs/CODEMAGIC_SETUP.md`](docs/CODEMAGIC_SETUP.md) for setup, signing, and release requirements. The Android/iOS platform directories are generated during CI.

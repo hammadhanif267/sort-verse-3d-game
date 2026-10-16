@@ -52,3 +52,10 @@ android/build/
 android/app/build/
 android/local.properties
 
+
+# Generated iOS, simulator, and release artifacts
+ios/Pods/
+ios/App/build/
+ios/DerivedData/
+build/ios-simulator/
+*.ipa

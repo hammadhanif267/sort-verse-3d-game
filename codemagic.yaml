@@ -1,0 +1,172 @@
+# SortVerse 3D - Next.js static export -> Capacitor 8 -> native builds.
+# Codemagic scans for this file at the repository root.
+# All workflows use the Codemagic Apple Silicon Mac mini M2.
+# IMPORTANT: Change capacitor.config.json appId before any store release.
+workflows:
+  android-debug-apk:
+    name: "SortVerse - Android test APK (Mac mini M2)"
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: v22.11.0
+      java: 21
+    scripts:
+      - name: Install exact web dependencies
+        script: npm ci
+      - name: Run existing game tests
+        script: npm run test:logic
+      - name: Check lint
+        script: npm run lint
+      - name: Export offline Next.js game
+        script: |
+          npm run build
+          test -f out/index.html || { echo 'Missing static out/index.html'; exit 1; }
+      - name: Create and configure Android wrapper
+        script: |
+          npx cap add android
+          node scripts/configure-android.mjs
+          npx cap sync android
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
+      - name: Build installable debug APK
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+      - android/app/build/outputs/logs/*
+
+  android-release-aab:
+    name: "SortVerse - Google Play signed AAB (Mac mini M2)"
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: v22.11.0
+      java: 21
+      # Upload a PRIVATE keystore to Codemagic Team settings -> Code signing identities
+      # with the reference name sortverse_upload_key. Do not commit the key.
+      android_signing:
+        - sortverse_upload_key
+    scripts:
+      - name: Check confirmed permanent package ID
+        script: node scripts/codemagic-check.mjs release
+      - name: Install exact web dependencies
+        script: npm ci
+      - name: Test and lint
+        script: |
+          npm run test:logic
+          npm run lint
+      - name: Export offline Next.js game
+        script: |
+          npm run build
+          test -f out/index.html || { echo 'Missing static out/index.html'; exit 1; }
+      - name: Create and configure Android wrapper
+        script: |
+          npx cap add android
+          node scripts/configure-android.mjs
+          npx cap sync android
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > android/local.properties
+      - name: Configure private signing and Play versionCode
+        script: |
+          node scripts/codemagic-android-signing.mjs
+          node scripts/codemagic-android-version.mjs
+      - name: Build signed Play Store AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/mapping/release/*
+      - android/app/build/outputs/logs/*
+
+  ios-simulator:
+    name: "SortVerse - iOS Simulator preview (Mac mini M2)"
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: v22.11.0
+      xcode: "26.4"
+      cocoapods: default
+    scripts:
+      - name: Install exact web dependencies
+        script: npm ci
+      - name: Install matching Capacitor iOS platform for this CI build
+        script: npm install --no-save --package-lock=false @capacitor/ios@8.5.3
+      - name: Run tests and lint
+        script: |
+          npm run test:logic
+          npm run lint
+      - name: Export offline Next.js game
+        script: |
+          npm run build
+          test -f out/index.html || { echo 'Missing static out/index.html'; exit 1; }
+      - name: Generate iOS wrapper and sync offline assets
+        script: |
+          npx cap add ios --packagemanager CocoaPods
+          npx cap sync ios
+          cd ios/App
+          pod install
+      - name: Build UNSIGNED Simulator app (not an iPhone IPA)
+        script: |
+          xcodebuild build \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            -derivedDataPath build/ios-simulator \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios-simulator/Build/Products/Debug-iphonesimulator/App.app \
+            build/SortVerse3D-iOS-Simulator.zip
+    artifacts:
+      - build/SortVerse3D-iOS-Simulator.zip
+      - /tmp/xcodebuild_logs/*.log
+
+  # Optional App Store / TestFlight IPA. Needs Apple Developer membership and
+  # App Store distribution certificate + provisioning profile uploaded in Codemagic.
+  # Replace BOTH bundle ID values: this one and capacitor.config.json appId.
+  ios-release-ipa:
+    name: "SortVerse - iOS signed IPA (configure Apple signing first)"
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: v22.11.0
+      xcode: "26.4"
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.yourname.sortverse  # CHANGE before release!
+    scripts:
+      - name: Confirm bundle ID has been finalized
+        script: node scripts/codemagic-check.mjs release
+      - name: Install web and matching iOS dependencies
+        script: |
+          npm ci
+          npm install --no-save --package-lock=false @capacitor/ios@8.5.3
+      - name: Test, lint and export offline web game
+        script: |
+          npm run test:logic
+          npm run lint
+          npm run build
+          test -f out/index.html
+      - name: Generate iOS wrapper and Pods
+        script: |
+          npx cap add ios --packagemanager CocoaPods
+          npx cap sync ios
+          cd ios/App
+          pod install
+      - name: Apply Codemagic provisioning profiles
+        script: xcode-project use-profiles
+      - name: Assign build number for store uploads
+        script: node scripts/codemagic-ios-version.mjs
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
